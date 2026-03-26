@@ -46,7 +46,7 @@ jobs:
           
           # 4. 执行正式版构建
           # 使用 --device 强制生成可安装的 APK
-          cordova build android --release --device --verbose
+          cordova build android --release --device --verbose -- --packageType=apk
           
           # 【重要调试】打印当前生成的 APK 路径，如果这步没输出，说明构建失败了
           echo "检查生成的 APK 文件位置："
