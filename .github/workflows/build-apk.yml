@@ -54,14 +54,12 @@ jobs:
           cd build_tmp
           cordova platform add android
           
-          # 配置 config.xml
-          cat >> config.xml << 'EOF'
-      <preference name="AndroidInsecureFileModeEnabled" value="true" />
-      <preference name="AllowInlineMediaPlayback" value="true" />
-      <preference name="MediaPlaybackRequiresUserAction" value="false" />
-      <access origin="file://*" />
-      <access origin="*" />
-      EOF
+          # 用 echo 追加配置（避免 heredoc 语法问题）
+          echo '    <preference name="AndroidInsecureFileModeEnabled" value="true" />' >> config.xml
+          echo '    <preference name="AllowInlineMediaPlayback" value="true" />' >> config.xml
+          echo '    <preference name="MediaPlaybackRequiresUserAction" value="false" />' >> config.xml
+          echo '    <access origin="file://*" />' >> config.xml
+          echo '    <access origin="*" />' >> config.xml
           
           # 构建未签名 APK
           cordova build android --release
@@ -70,6 +68,7 @@ jobs:
           find . -name "*.apk"
 
       - name: 恢复 keystore 并签名
+        if: success() && secrets.KEYSTORE_BASE64 != ''
         run: |
           # 从 Base64 恢复 keystore
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
@@ -83,20 +82,26 @@ jobs:
             -sigalg SHA1withRSA \
             -digestalg SHA1 \
             -keystore keystore.jks \
-            -storepass ${{ secrets.KEYSTORE_PASSWORD }} \
-            -keypass ${{ secrets.KEY_PASSWORD }} \
+            -storepass "${{ secrets.KEYSTORE_PASSWORD }}" \
+            -keypass "${{ secrets.KEY_PASSWORD }}" \
             "$UNSIGNED_APK" \
-            ${{ secrets.KEY_ALIAS }}
+            "${{ secrets.KEY_ALIAS }}"
           
           # 验证签名
           jarsigner -verify "$UNSIGNED_APK"
           
-          # 对齐优化（可选）
-          zipalign -v -p 4 "$UNSIGNED_APK" app-release-aligned.apk
-          
-          mv app-release-aligned.apk signed_app.apk
+          # 对齐优化
+          zipalign -v -p 4 "$UNSIGNED_APK" signed_app.apk
+
+      - name: 上传未签名 APK（如果没有签名密钥）
+        if: success() && secrets.KEYSTORE_BASE64 == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: 手风琴键盘-未签名版
+          path: build_tmp/platforms/android/app/build/outputs/apk/release/*.apk
 
       - name: 上传已签名 APK
+        if: success() && secrets.KEYSTORE_BASE64 != ''
         uses: actions/upload-artifact@v4
         with:
           name: 手风琴键盘-签名版
