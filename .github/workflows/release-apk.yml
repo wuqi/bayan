@@ -1,0 +1,98 @@
+name: Release 构建 (签名版)
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Java 环境
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: 安装 Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 接受 Android 许可证
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+
+      - name: 安装 Cordova
+        run: npm install -g cordova
+
+      - name: 准备 Cordova 项目
+        run: |
+          cordova create app com.example.accordion "手风琴键盘"
+          cp index.html app/www/
+          cp rough.js app/www/
+          cp smplr.js app/www/
+          cp soundfont2.js app/www/
+          cp 8bitsf.SF2 app/www/
+
+      - name: 添加 Android 平台
+        run: |
+          cd app
+          cordova platform add android
+
+      - name: 配置 config.xml
+        run: |
+          cd app
+          sed -i '/<\/widget>/i \    <preference name="AndroidInsecureFileModeEnabled" value="true" />' config.xml
+          sed -i '/<\/widget>/i \    <preference name="AllowInlineMediaPlayback" value="true" />' config.xml
+          sed -i '/<\/widget>/i \    <preference name="MediaPlaybackRequiresUserAction" value="false" />' config.xml
+
+      - name: 构建 Release APK
+        run: |
+          cd app
+          cordova build android --release
+
+      - name: 签名 APK
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
+          UNSIGNED_APK=$(find app/platforms/android/app/build/outputs/apk/release -name "*.apk" | head -1)
+          
+          jarsigner -verbose \
+            -sigalg SHA1withRSA \
+            -digestalg SHA1 \
+            -keystore keystore.jks \
+            -storepass "${{ secrets.KEYSTORE_PASSWORD }}" \
+            -keypass "${{ secrets.KEY_PASSWORD }}" \
+            "$UNSIGNED_APK" \
+            "${{ secrets.KEY_ALIAS }}"
+          
+          cp "$UNSIGNED_APK" signed_app.apk
+
+      - name: 上传签名版 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: 手风琴键盘-Release签名版
+          path: signed_app.apk
+
+      - name: 创建 Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: signed_app.apk
+          tag_name: ${{ github.ref_name }}
+          body: |
+            ## 手风琴键盘 v${{ github.ref_name }}
+            
+            ### 更新内容
+            - 请在此填写版本更新说明
+            
+            ### 安装说明
+            下载 APK 后直接安装即可使用
