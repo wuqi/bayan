@@ -1,4 +1,4 @@
-name: 构建 Android APK
+name: 构建并签名 Android 正式版 APK
 
 on:
   push:
@@ -13,11 +13,11 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: 设置 Java 环境 (Cordova 必需)
+      - name: 设置 Java 环境 (JDK 17)
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17' # Cordova 12+ 推荐使用 JDK 17
+          java-version: '17'
 
       - name: 设置 Node.js
         uses: actions/setup-node@v4
@@ -27,29 +27,39 @@ jobs:
       - name: 安装 Cordova
         run: npm install -g cordova
 
-      - name: 初始化并构建项目
+      - name: 准备 Cordova 项目并构建 Release
         run: |
-          # 1. 创建项目（注意：直接在当前目录下操作，避免多层 app 文件夹嵌套）
+          # 1. 创建构建专用目录
           cordova create build_tmp com.example.accordion "AccordionKeyboard"
           
-          # 2. 将你的源代码(www内容)复制进 Cordova 目录
-          # 假设你的 index.html 等文件在仓库根目录
+          # 2. 将源码复制进项目 (假设你的 index.html 在根目录)
           cp -rv ./* build_tmp/www/ 2>/dev/null || true
           
-          # 3. 进入目录添加平台并构建
+          # 3. 进入目录添加平台
           cd build_tmp
           cordova platform add android
           
-          # 修正 config.xml 配置
+          # 4. 配置权限和不安全文件模式（你的原需求）
           sed -i '/<\/widget>/i \    <preference name="AndroidInsecureFileModeEnabled" value="true" />' config.xml
           
-          # 执行 Debug 构建（这样生成的 APK 可以直接安装测试）
-          cordova build android --debug
+          # 5. 构建未签名的 Release APK
+          cordova build android --release
 
-      - name: 上传 APK 产物
+      - name: 签名正式版 APK
+        uses: r0adkll/sign-android-release@v1
+        id: sign_app
+        with:
+          # 指向 Cordova 生成的 release 目录
+          releaseDirectory: build_tmp/platforms/android/app/build/outputs/apk/release
+          signingKeyBase64: ${{ secrets.KEYSTORE_BASE64 }}
+          alias: ${{ secrets.KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+
+      - name: 上传已签名的 APK 到 Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: 手风琴键盘-测试版
-          # 使用通配符递归查找，彻底解决路径找不到的问题
-          path: "build_tmp/platforms/android/app/build/outputs/apk/debug/*.apk"
-          if-no-files-found: error # 如果没找到文件，直接让 Action 报错提醒
+          name: 手风琴键盘-正式签名版
+          # 使用签名插件自动输出的已签名文件路径
+          path: ${{ steps.sign_app.outputs.signedReleaseFile }}
+          if-no-files-found: error
