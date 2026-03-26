@@ -1,0 +1,46 @@
+name: 构建 Android APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 安装 Cordova
+        run: npm install -g cordova
+
+      - name: 创建 Cordova 项目
+        run: |
+          cordova create app com.example.accordion "手风琴键盘"
+          cp -r ./* app/www/ 2>/dev/null || true
+          cd app
+          cordova platform add android
+
+      - name: 配置 Android 权限
+        run: |
+          cd app
+          # 添加必要的配置到 config.xml
+          sed -i 's/<\/widget>/<preference name="AndroidInsecureFileModeEnabled" value="true" \/><\/widget>/' config.xml
+
+      - name: 构建 APK
+        run: |
+          cd app
+          cordova build android --release
+
+      - name: 上传 APK 到 Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: app/platforms/android/app/build/outputs/apk/release/*.apk

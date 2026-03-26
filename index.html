@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: file:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' file: data: blob: https:;">
+    <title>手风琴MIDI键盘 - 支持SF2音色</title>
+    <script src="./rough.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            overflow: hidden;
+            background: linear-gradient(145deg, #e8e6e0 0%, #d4d2ca 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            touch-action: none;
+        }
+        
+        h1 {
+            margin-bottom: 12px;
+            color: #2c241a;
+            text-align: center;
+            font-weight: 600;
+            font-size: 1.6rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            letter-spacing: 2px;
+        }
+        
+        .control-panel {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+            background-color: rgba(255,255,245,0.95);
+            padding: 12px 20px;
+            border-radius: 60px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+            flex-wrap: wrap;
+            gap: 15px;
+            backdrop-filter: blur(4px);
+        }
+        
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #f5f0e8;
+            padding: 5px 12px;
+            border-radius: 40px;
+        }
+        
+        .control-panel span {
+            font-size: 1rem;
+            color: #4a3728;
+            font-weight: 500;
+        }
+        
+        .control-btn {
+            width: 38px;
+            height: 38px;
+            border: none;
+            background-color: #e0d6c8;
+            border-radius: 50%;
+            font-size: 1.4rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+            transition: all 0.1s;
+            color: #5a3e2a;
+            font-weight: bold;
+        }
+        
+        .control-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        
+        .value-display {
+            min-width: 55px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            background: #2c241a;
+            color: #f5d742;
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-family: monospace;
+        }
+        
+        .toggle-btn {
+            width: 38px;
+            height: 38px;
+            border: none;
+            background-color: #6b8c5c;
+            color: white;
+            border-radius: 50%;
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-weight: bold;
+        }
+        
+        .toggle-btn.active {
+            background-color: #3d6b2f;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+        }
+        
+        select {
+            padding: 6px 12px;
+            border-radius: 30px;
+            border: 1px solid #c0b28a;
+            background-color: #fffaf0;
+            font-size: 0.85rem;
+            cursor: pointer;
+            outline: none;
+            font-weight: 500;
+        }
+        
+        .sf2-url-input {
+            padding: 6px 12px;
+            border-radius: 30px;
+            border: 1px solid #c0b28a;
+            background-color: #fffaf0;
+            font-size: 0.8rem;
+            width: 280px;
+            outline: none;
+        }
+        
+        .load-sf2-btn {
+            background-color: #6b8c5c;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: background 0.1s;
+        }
+        
+        .load-sf2-btn:active {
+            background-color: #4a6a3a;
+        }
+        
+        .status-text {
+            font-size: 0.7rem;
+            color: #6b5a48;
+            margin-left: 8px;
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        #keyboard-container {
+            width: 95%;
+            height: 65%;
+            max-width: 1300px;
+            background-color: #e2d9cc;
+            border-radius: 32px;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2), inset 0 1px 2px rgba(255,255,200,0.6);
+            padding: 18px;
+            position: relative;
+            touch-action: none;
+        }
+        
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+            border-radius: 24px;
+            cursor: pointer;
+        }
+        
+        .instructions {
+            margin-top: 16px;
+            background: rgba(44, 36, 26, 0.7);
+            backdrop-filter: blur(4px);
+            padding: 6px 20px;
+            border-radius: 40px;
+            color: #f0e6d0;
+            font-weight: 500;
+            font-size: 0.75rem;
+            max-width: 550px;
+            text-align: center;
+        }
+        
+        .touch-indicator {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,180,80,0.7), rgba(200,100,30,0.4));
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 12px rgba(255,140,0,0.5);
+            z-index: 100;
+        }
+        
+        .rotate-notice {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            color: #ffdd99;
+            z-index: 200;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            backdrop-filter: blur(8px);
+        }
+        
+        @media (max-width: 768px) {
+            h1 { font-size: 1.2rem; margin-bottom: 6px; }
+            .control-panel { padding: 8px 12px; gap: 8px; }
+            .control-group { gap: 5px; padding: 3px 8px; }
+            .control-btn { width: 32px; height: 32px; font-size: 1.2rem; }
+            .value-display { font-size: 0.9rem; min-width: 45px; padding: 2px 8px; }
+            .sf2-url-input { width: 160px; font-size: 0.7rem; }
+            .load-sf2-btn { padding: 4px 10px; font-size: 0.7rem; }
+            #keyboard-container { height: 58%; padding: 12px; }
+            
+            @media (orientation: portrait) {
+                #keyboard-container {
+                    transform: rotate(90deg);
+                    width: 82vh;
+                    height: 72vw;
+                }
+                .rotate-notice { display: flex; }
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>🪗 MIDI手风琴键盘</h1>
+    
+    <div class="control-panel">
+        <div class="control-group">
+            <button class="control-btn minus-btn" id="minus-btn">−</button>
+            <span class="value-display" id="value1-display">48</span>
+            <span>→</span>
+            <span class="value-display" id="value2-display">83</span>
+            <button class="control-btn plus-btn" id="plus-btn">+</button>
+        </div>
+    
+        <div class="control-group">
+            <span>🎵 内置</span>
+            <select id="instrument-select">
+                <option value="accordion" selected>手风琴</option>
+                <option value="acoustic_grand_piano">钢琴</option>
+                <option value="marimba">马林巴</option>
+                <option value="vibraphone">颤音琴</option>
+                <option value="music_box">音乐盒</option>
+                <option value="harmonica">口琴</option>
+                <option value="drawbar_organ">风琴</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <span>🎚️ SF2</span>
+            <input type="text" id="sf2-url" class="sf2-url-input" placeholder="SF2文件路径/URL" value="8bitsf.SF2">
+            <button id="load-sf2" class="load-sf2-btn">加载SF2</button>
+            <span id="sf2-status" class="status-text"></span>
+        </div>
+        
+        <div class="control-group">
+            <button class="toggle-btn active" id="toggle-notes">🎼</button>
+            <span>音名</span>
+        </div>
+    </div>
+    
+    <div id="keyboard-container">
+        <canvas id="keyboard-canvas"></canvas>
+    </div>
+    
+    <p class="instructions">✨ 按下琴键发声 · 松开即停 · 手指力度影响音量 ✨<br>📁 SF2文件放在 www/ 目录或输入完整URL</p>
+
+    <div class="rotate-notice">
+        <svg width="70" height="70" viewBox="0 0 24 24" fill="none" stroke="#ffbc6e" stroke-width="1.8">
+            <path d="M14 4l6 6-6 6M4 4h16M4 20h16" stroke-linecap="round"/>
+        </svg>
+        <p>📱 横屏演奏体验更佳</p>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "smplr": "./smplr.js",
+                "soundfont2": "./soundfont2.js"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import { Soundfont, Soundfont2Sampler } from 'smplr';
+        import { SoundFont2 } from 'soundfont2';
+        
+        // ==================== 环境检测 ====================
+        const isCordova = typeof cordova !== 'undefined';
+        const isAndroidWebView = !isCordova && (window.navigator.userAgent.indexOf('wv') > -1 || window.navigator.userAgent.indexOf('Android') > -1 && window.navigator.userAgent.indexOf('Chrome') === -1);
+        console.log('运行环境:', isCordova ? 'Cordova/APK' : (isAndroidWebView ? 'Android WebView' : '浏览器'));
+        
+        // ==================== 键盘布局 ====================
+        const keyboardLayout = [
+            [0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0],
+            [1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1],
+            [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0]
+        ];
+
+        const value1Options = [24, 36, 48, 60, 72, 84];
+        const value2Options = [59, 71, 83, 95, 107, 119];
+        let currentIndex = 2;
+        let showNoteLabels = true;
+        let currentBuiltinInstrument = "accordion";
+        let currentInstrumentType = "builtin";
+        
+        // MIDI音名映射
+        const midiToNote = {
+            24: "C1", 25: "C#1", 26: "D1", 27: "D#1", 28: "E1", 29: "F1", 30: "F#1", 31: "G1", 32: "G#1", 33: "A1", 34: "A#1", 35: "B1",
+            36: "C2", 37: "C#2", 38: "D2", 39: "D#2", 40: "E2", 41: "F2", 42: "F#2", 43: "G2", 44: "G#2", 45: "A2", 46: "A#2", 47: "B2",
+            48: "C3", 49: "C#3", 50: "D3", 51: "D#3", 52: "E3", 53: "F3", 54: "F#3", 55: "G3", 56: "G#3", 57: "A3", 58: "A#3", 59: "B3",
+            60: "C4", 61: "C#4", 62: "D4", 63: "D#4", 64: "E4", 65: "F4", 66: "F#4", 67: "G4", 68: "G#4", 69: "A4", 70: "A#4", 71: "B4",
+            72: "C5", 73: "C#5", 74: "D5", 75: "D#5", 76: "E5", 77: "F5", 78: "F#5", 79: "G5", 80: "G#5", 81: "A5", 82: "A#5", 83: "B5",
+            84: "C6", 85: "C#6", 86: "D6", 87: "D#6", 88: "E6", 89: "F6", 90: "F#6", 91: "G6", 92: "G#6", 93: "A6", 94: "A#6", 95: "B6",
+            96: "C7", 97: "C#7", 98: "D7", 99: "D#7", 100: "E7", 101: "F7", 102: "F#7", 103: "G7", 104: "G#7", 105: "A7", 106: "A#7", 107: "B7"
+        };
+
+        // ==================== 音频引擎 ====================
+        let audioCtx = null;
+        let soundfontInstrument = null;
+        let isAudioReady = false;
+        let isLoading = false;
+        let activeNotes = new Map();
+        let activeTouches = new Map();
+        
+        // 初始化音频（立即创建）
+        async function initAudio() {
+            if (audioCtx) return audioCtx;
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                // 在 Cordova/WebView 中尝试自动恢复
+                if (isCordova || isAndroidWebView) {
+                    await audioCtx.resume();
+                }
+                return audioCtx;
+            } catch (e) {
+                console.error("Web Audio API 不支持", e);
+                return null;
+            }
+        }
+        
+        // 用户手势辅助激活
+        async function ensureAudio() {
+            if (audioCtx && audioCtx.state === 'suspended') {
+                await audioCtx.resume();
+            }
+        }
+        
+        // 加载内置音色
+        async function loadBuiltinInstrument(instrumentName) {
+            if (!audioCtx) await initAudio();
+            if (!audioCtx || isLoading) return false;
+            isLoading = true;
+            
+            const statusSpan = document.getElementById('sf2-status');
+            if (statusSpan) {
+                statusSpan.textContent = `加载 ${instrumentName}...`;
+                statusSpan.style.color = "#6b5a48";
+            }
+            
+            try {
+                const newInstrument = new Soundfont(audioCtx, {
+                    instrument: instrumentName,
+                    onLoadProgress: ({ loaded, total }) => {
+                        if (total && statusSpan) {
+                            statusSpan.textContent = `${Math.floor(loaded/total*100)}%`;
+                        }
+                    }
+                });
+                
+                await newInstrument.load;
+                
+                stopAllNotes();
+                if (soundfontInstrument) {
+                    try { soundfontInstrument.stop(); } catch(e) {}
+                }
+                soundfontInstrument = newInstrument;
+                isAudioReady = true;
+                currentInstrumentType = "builtin";
+                currentBuiltinInstrument = instrumentName;
+                isLoading = false;
+                
+                if (statusSpan) {
+                    statusSpan.textContent = `✓ ${instrumentName}`;
+                    statusSpan.style.color = "#6b8c5c";
+                    setTimeout(() => {
+                        if (currentInstrumentType === "builtin" && statusSpan) statusSpan.textContent = "";
+                    }, 2000);
+                }
+                return true;
+            } catch (err) {
+                console.error("加载失败:", err);
+                if (statusSpan) {
+                    statusSpan.textContent = "失败";
+                    statusSpan.style.color = "#b56a3a";
+                }
+                isLoading = false;
+                isAudioReady = false;
+                return false;
+            }
+        }
+        
+        // 加载 SF2（支持本地文件、URL）
+        async function loadSF2Instrument(url) {
+            if (!audioCtx) await initAudio();
+            if (!audioCtx) return false;
+            
+            const statusSpan = document.getElementById('sf2-status');
+            let sf2Url = url;
+            
+            // 处理本地文件路径（Cordova/Android WebView）
+            if (!sf2Url.startsWith('http://') && !sf2Url.startsWith('https://') && !sf2Url.startsWith('file://')) {
+                if (isCordova) {
+                    sf2Url = `file:///android_asset/www/${sf2Url}`;
+                } else if (isAndroidWebView) {
+                    sf2Url = `file:///android_asset/${sf2Url}`;
+                } else {
+                    sf2Url = `./${sf2Url}`;
+                }
+            }
+            
+            console.log("SF2路径:", sf2Url);
+            statusSpan.textContent = `加载SF2...`;
+            statusSpan.style.color = "#6b5a48";
+            
+            try {
+                const sampler = new Soundfont2Sampler(audioCtx, {
+                    url: sf2Url,
+                    createSoundfont: (data) => new SoundFont2(data)
+                });
+                
+                await sampler.load;
+                
+                if (sampler.instrumentNames && sampler.instrumentNames.length > 0) {
+                    const instrName = sampler.instrumentNames[0];
+                    statusSpan.textContent = `乐器: ${instrName.substring(0, 15)}...`;
+                    await sampler.loadInstrument(instrName);
+                    
+                    stopAllNotes();
+                    if (soundfontInstrument) {
+                        try { soundfontInstrument.stop(); } catch(e) {}
+                    }
+                    soundfontInstrument = sampler;
+                    isAudioReady = true;
+                    currentInstrumentType = "sf2";
+                    
+                    statusSpan.textContent = `✓ SF2就绪`;
+                    statusSpan.style.color = "#6b8c5c";
+                    setTimeout(() => {
+                        if (currentInstrumentType === "sf2" && statusSpan) statusSpan.textContent = "";
+                    }, 2500);
+                    return true;
+                }
+                throw new Error("无乐器");
+            } catch (err) {
+                console.error("SF2加载失败:", err);
+                statusSpan.textContent = `SF2失败`;
+                statusSpan.style.color = "#b56a3a";
+                isAudioReady = false;
+                return false;
+            }
+        }
+        
+        // 播放音符
+        async function startNote(midiNumber, velocity = 0.65) {
+            if (!audioCtx) {
+                await initAudio();
+                if (!audioCtx) return;
+            }
+            
+            if (audioCtx.state === 'suspended') {
+                await audioCtx.resume();
+            }
+            
+            if (activeNotes.has(midiNumber)) {
+                stopNote(midiNumber);
+            }
+            
+            const vel = Math.floor(Math.min(127, Math.max(1, velocity * 127)));
+            
+            if (soundfontInstrument && isAudioReady) {
+                try {
+                    const stopFn = soundfontInstrument.start({
+                        note: midiNumber,
+                        velocity: vel,
+                        time: audioCtx.currentTime
+                    });
+                    activeNotes.set(midiNumber, { stopFunction: stopFn });
+                    return;
+                } catch(e) {
+                    console.warn("播放错误", e);
+                }
+            }
+            
+            // 降级振荡器
+            try {
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                osc.type = 'triangle';
+                const freq = 440 * Math.pow(2, (midiNumber - 69) / 12);
+                osc.frequency.value = freq;
+                gainNode.gain.value = velocity * 0.35;
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                osc.start();
+                
+                activeNotes.set(midiNumber, {
+                    stopFunction: () => {
+                        gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.05);
+                        osc.stop(audioCtx.currentTime + 0.1);
+                    }
+                });
+            } catch(e) {}
+        }
+        
+        function stopNote(midiNumber) {
+            const noteInfo = activeNotes.get(midiNumber);
+            if (noteInfo && noteInfo.stopFunction) {
+                try { noteInfo.stopFunction(); } catch(e) {}
+                activeNotes.delete(midiNumber);
+            }
+        }
+        
+        function stopAllNotes() {
+            for (const [midi, noteInfo] of activeNotes) {
+                try { if (noteInfo.stopFunction) noteInfo.stopFunction(); } catch(e) {}
+            }
+            activeNotes.clear();
+        }
+        
+        // ==================== 绘图部分 ====================
+        const canvas = document.getElementById('keyboard-canvas');
+        const ctx = canvas.getContext('2d');
+        let roughCanvas = null;
+        let keyPositions = [];
+        
+        function getCanvasCoords(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
+            };
+        }
+        
+        function resizeCanvas() {
+            const container = document.getElementById('keyboard-container');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            if (!roughCanvas) roughCanvas = rough.canvas(canvas);
+            drawKeyboard();
+        }
+        
+        function drawKeyboard() {
+            if (!roughCanvas) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            keyPositions = [];
+            const rows = keyboardLayout.length;
+            const cols = keyboardLayout[0].length;
+            const keyDiameter = Math.min(
+                canvas.width / (cols * 1.2),
+                canvas.height / (rows * 2)
+            );
+            const startX = (canvas.width - (cols * keyDiameter * 1.1)) / 2;
+            const startY = (canvas.height - (rows * keyDiameter * 1.1)) / 2;
+            const startMidi = value1Options[currentIndex];
+            
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    const keyType = keyboardLayout[row][col];
+                    const x = startX + col * keyDiameter * 1.1 + row * keyDiameter * 0.55;
+                    const y = startY + row * keyDiameter * 1.1;
+                    const midiNote = startMidi + row + col * 3;
+                    if (midiNote > value2Options[currentIndex]) continue;
+                    
+                    const radius = keyDiameter / 2;
+                    keyPositions.push({ x, y, radius, row, col, type: keyType, midiNote });
+                    
+                    const isBlack = keyType === 1;
+                    const fillColor = isBlack ? '#4a3728' : '#fffef5';
+                    const strokeColor = isBlack ? '#2c211a' : '#b8a77a';
+                    const seed = (row + 1) * 10 + (col + 1);
+                    
+                    roughCanvas.circle(x, y, keyDiameter, {
+                        fill: fillColor, fillStyle: 'solid', stroke: strokeColor,
+                        strokeWidth: 1.5, roughness: 1.0, bowing: 0.3, seed: seed
+                    });
+                    
+                    roughCanvas.circle(x + 1, y + 1, keyDiameter - 5, {
+                        fill: isBlack ? '#2f241b' : '#fff0df', fillStyle: 'solid',
+                        stroke: 'none', roughness: 0.6, seed: seed + 100
+                    });
+                    
+                    if (showNoteLabels && midiToNote[midiNote]) {
+                        ctx.fillStyle = isBlack ? '#ffeaac' : '#5c3f24';
+                        ctx.font = `${Math.max(11, keyDiameter * 0.28)}px 'Segoe UI', monospace`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(midiToNote[midiNote], x, y);
+                    }
+                }
+            }
+        }
+        
+        function updateControlPanel() {
+            document.getElementById('value1-display').textContent = value1Options[currentIndex];
+            document.getElementById('value2-display').textContent = value2Options[currentIndex];
+            drawKeyboard();
+        }
+        
+        function handleKeyDown(canvasX, canvasY, intensity) {
+            for (const key of keyPositions) {
+                if (Math.hypot(canvasX - key.x, canvasY - key.y) <= key.radius) {
+                    startNote(key.midiNote, intensity);
+                    ctx.fillStyle = key.type === 1 ? `rgba(255,220,150,${intensity*0.7})` : `rgba(180,120,50,${intensity*0.6})`;
+                    ctx.beginPath();
+                    ctx.arc(key.x, key.y, key.radius - 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    break;
+                }
+            }
+        }
+        
+        function handleKeyUp(canvasX, canvasY) {
+            for (const key of keyPositions) {
+                if (Math.hypot(canvasX - key.x, canvasY - key.y) <= key.radius) {
+                    stopNote(key.midiNote);
+                    drawKeyboard();
+                    break;
+                }
+            }
+        }
+        
+        // ==================== 事件绑定 ====================
+        canvas.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            const { x, y } = getCanvasCoords(e.clientX, e.clientY);
+            handleKeyDown(x, y, 0.65);
+        });
+        
+        canvas.addEventListener('mouseup', (e) => {
+            e.preventDefault();
+            const { x, y } = getCanvasCoords(e.clientX, e.clientY);
+            handleKeyUp(x, y);
+        });
+        
+        canvas.addEventListener('mouseleave', () => {
+            stopAllNotes();
+            drawKeyboard();
+        });
+        
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.touches.length; i++) {
+                const touch = e.touches[i];
+                const { x, y } = getCanvasCoords(touch.clientX, touch.clientY);
+                let intensity = touch.force || 0.55;
+                if (intensity <= 0.1) intensity = 0.55;
+                handleKeyDown(x, y, intensity);
+                
+                const indicator = document.createElement('div');
+                indicator.id = `touch-${touch.identifier}`;
+                indicator.className = 'touch-indicator';
+                indicator.style.left = `${touch.clientX}px`;
+                indicator.style.top = `${touch.clientY}px`;
+                indicator.style.width = `${intensity * 40 + 20}px`;
+                indicator.style.height = `${intensity * 40 + 20}px`;
+                document.body.appendChild(indicator);
+                activeTouches.set(touch.identifier, indicator);
+            }
+        });
+        
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            stopAllNotes();
+            drawKeyboard();
+            for (let i = 0; i < e.touches.length; i++) {
+                const touch = e.touches[i];
+                const { x, y } = getCanvasCoords(touch.clientX, touch.clientY);
+                let intensity = touch.force || 0.55;
+                if (intensity <= 0.1) intensity = 0.55;
+                handleKeyDown(x, y, intensity);
+                
+                const indicator = activeTouches.get(touch.identifier);
+                if (indicator) {
+                    indicator.style.left = `${touch.clientX}px`;
+                    indicator.style.top = `${touch.clientY}px`;
+                    indicator.style.width = `${intensity * 40 + 20}px`;
+                    indicator.style.height = `${intensity * 40 + 20}px`;
+                }
+            }
+        });
+        
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            stopAllNotes();
+            drawKeyboard();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                const indicator = activeTouches.get(touch.identifier);
+                if (indicator) indicator.remove();
+                activeTouches.delete(touch.identifier);
+            }
+        });
+        
+        canvas.addEventListener('touchcancel', (e) => {
+            e.preventDefault();
+            stopAllNotes();
+            drawKeyboard();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const indicator = activeTouches.get(e.changedTouches[i].identifier);
+                if (indicator) indicator.remove();
+                activeTouches.delete(e.changedTouches[i].identifier);
+            }
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            const { x, y } = getCanvasCoords(e.clientX, e.clientY);
+            let hovered = null;
+            for (const key of keyPositions) {
+                if (Math.hypot(x - key.x, y - key.y) <= key.radius) { hovered = key; break; }
+            }
+            drawKeyboard();
+            if (hovered) {
+                ctx.fillStyle = hovered.type === 1 ? 'rgba(255,200,100,0.25)' : 'rgba(100,70,30,0.2)';
+                ctx.beginPath();
+                ctx.arc(hovered.x, hovered.y, hovered.radius - 2, 0, Math.PI * 2);
+                ctx.fill();
+                if (showNoteLabels) {
+                    ctx.fillStyle = hovered.type === 1 ? '#ffeaac' : '#5c3f24';
+                    ctx.font = `${Math.max(11, hovered.radius * 0.28)}px monospace`;
+                    ctx.fillText(midiToNote[hovered.midiNote], hovered.x, hovered.y);
+                }
+            }
+        });
+        
+        // UI 控制
+        document.getElementById('plus-btn').addEventListener('click', () => {
+            currentIndex = (currentIndex + 1) % value1Options.length;
+            updateControlPanel();
+        });
+        document.getElementById('minus-btn').addEventListener('click', () => {
+            currentIndex = (currentIndex - 1 + value1Options.length) % value1Options.length;
+            updateControlPanel();
+        });
+        document.getElementById('toggle-notes').addEventListener('click', function() {
+            showNoteLabels = !showNoteLabels;
+            this.classList.toggle('active', showNoteLabels);
+            drawKeyboard();
+        });
+        document.getElementById('instrument-select').addEventListener('change', async (e) => {
+            stopAllNotes();
+            await loadBuiltinInstrument(e.target.value);
+        });
+        document.getElementById('load-sf2').addEventListener('click', async () => {
+            const url = document.getElementById('sf2-url').value.trim();
+            if (!url) { alert("请输入SF2文件路径或URL"); return; }
+            stopAllNotes();
+            await loadSF2Instrument(url);
+        });
+        
+        // 横屏检测
+        function orientCheck() {
+            const isPortrait = window.matchMedia("(orientation: portrait)").matches;
+            const notice = document.querySelector('.rotate-notice');
+            if (isPortrait && window.innerWidth <= 900) {
+                notice.style.display = 'flex';
+            } else {
+                notice.style.display = 'none';
+            }
+            setTimeout(resizeCanvas, 100);
+        }
+        
+        // 启动
+        window.addEventListener('load', async () => {
+            await initAudio();
+            resizeCanvas();
+            updateControlPanel();
+            orientCheck();
+            
+            // 优先尝试加载本地 SF2（如果文件存在）
+            const localSF2 = document.getElementById('sf2-url').value.trim();
+            if (localSF2 && (localSF2 === '8bitsf.SF2' || localSF2.endsWith('.sf2'))) {
+                await loadSF2Instrument(localSF2);
+            } else {
+                await loadBuiltinInstrument("accordion");
+                document.getElementById('instrument-select').value = "accordion";
+            }
+        });
+        
+        window.addEventListener('resize', () => { resizeCanvas(); orientCheck(); });
+        window.addEventListener('orientationchange', () => { setTimeout(resizeCanvas, 100); orientCheck(); });
+        
+        // 全局音频激活
+        document.addEventListener('click', ensureAudio);
+        document.addEventListener('touchstart', ensureAudio);
+    </script>
+</body>
+</html>
