@@ -19,12 +19,13 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      # 新增步骤：手动安装 Android SDK 组件
-      - name: 安装 Android Build Tools
+      # 【关键修复步 1】手动安装 Android SDK 及其工具
+      - name: 设置 Android SDK 环境
         uses: android-actions/setup-android@v3
-        with:
-          # 安装 29.0.3 或者是你项目需要的版本（建议用 30.0.3 更稳）
-          build-tools: "30.0.3"
+
+      # 【关键修复步 2】确保安装了具体的 Build Tools 版本
+      - name: 安装 Build Tools 30.0.3
+        run: sdkmanager "build-tools;30.0.3"
 
       - name: 设置 Node.js
         uses: actions/setup-node@v4
@@ -36,43 +37,29 @@ jobs:
 
       - name: 初始化 Cordova 并构建 Release
         run: |
-          # 1. 创建一个临时构建目录
           cordova create build_project com.example.accordion "AccordionKeyboard"
-          
-          # 2. 将仓库根目录的源码（HTML/JS/CSS）同步到 Cordova 的 www 目录
-          # 排除掉 build_project 自身，防止无限递归
           rsync -av --exclude='build_project' ./ build_project/www/
-          
           cd build_project
-          
-          # 3. 添加 Android 平台并配置
           cordova platform add android
-          
-          # 修改 config.xml 支持不安全文件模式（你的特定需求）
           sed -i '/<\/widget>/i \    <preference name="AndroidInsecureFileModeEnabled" value="true" />' config.xml
-          
-          # 4. 执行正式版构建
-          # 使用 --device 强制生成可安装的 APK
-          cordova build android --release --device --verbose -- --packageType=apk
-          
-          # 【重要调试】打印当前生成的 APK 路径，如果这步没输出，说明构建失败了
-          echo "检查生成的 APK 文件位置："
-          find platforms/android/app/build/outputs/apk/ -name "*.apk"
+          # 强制生成 APK
+          cordova build android --release --device -- --packageType=apk
 
       - name: 签名正式版 APK
         uses: r0adkll/sign-android-release@v1
         id: sign_app
         with:
-          # 路径必须与上面 find 出来的匹配
           releaseDirectory: build_project/platforms/android/app/build/outputs/apk/release
           signingKeyBase64: ${{ secrets.KEYSTORE_BASE64 }}
           alias: ${{ secrets.KEY_ALIAS }}
           keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
           keyPassword: ${{ secrets.KEY_PASSWORD }}
+          # 【关键修复步 3】明确告知插件使用新安装的版本
+          buildToolsVersion: "30.0.3"
 
       - name: 上传已签名的 APK 到 Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: 手风琴键盘-正式版
+          name: 手风琴键盘-正式签名版
           path: ${{ steps.sign_app.outputs.signedReleaseFile }}
           if-no-files-found: error
