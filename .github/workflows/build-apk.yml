@@ -19,6 +19,13 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      # 新增步骤：手动安装 Android SDK 组件
+      - name: 安装 Android Build Tools
+        uses: android-actions/setup-android@v3
+        with:
+          # 安装 29.0.3 或者是你项目需要的版本（建议用 30.0.3 更稳）
+          build-tools: "30.0.3"
+
       - name: 设置 Node.js
         uses: actions/setup-node@v4
         with:
