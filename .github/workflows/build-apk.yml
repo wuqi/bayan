@@ -1,4 +1,4 @@
-name: 构建 Android APK (Debug)
+name: 构建 Android APK
 
 on:
   push:
@@ -48,17 +48,22 @@ jobs:
           
           echo "=== 文件列表 ==="
           ls -la app/www/
-          
+
+      - name: 添加 Android 平台
+        run: |
           cd app
           cordova platform add android
 
       - name: 配置 config.xml
         run: |
           cd app
-          # 添加必要的配置
-          echo '    <preference name="AndroidInsecureFileModeEnabled" value="true" />' >> config.xml
-          echo '    <preference name="AllowInlineMediaPlayback" value="true" />' >> config.xml
-          echo '    <preference name="MediaPlaybackRequiresUserAction" value="false" />' >> config.xml
+          # 用 sed 在 </widget> 标签前插入配置
+          sed -i '/<\/widget>/i \    <preference name="AndroidInsecureFileModeEnabled" value="true" />' config.xml
+          sed -i '/<\/widget>/i \    <preference name="AllowInlineMediaPlayback" value="true" />' config.xml
+          sed -i '/<\/widget>/i \    <preference name="MediaPlaybackRequiresUserAction" value="false" />' config.xml
+          
+          # 验证 XML 结构
+          head -20 config.xml
 
       - name: 构建 APK
         run: |
