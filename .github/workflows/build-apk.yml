@@ -1,9 +1,9 @@
-name: 构建 Android APK
+name: 构建并签名 Android 正式版 APK
 
 on:
   push:
-    branches: [ main, master ]
-  workflow_dispatch:
+    branches: [ main ]
+  workflow_dispatch: 
 
 jobs:
   build:
@@ -13,7 +13,7 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: 设置 Java 环境
+      - name: 设置 Java 环境 (JDK 17)
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -22,59 +22,50 @@ jobs:
       - name: 设置 Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-
-      - name: 安装 Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: 'platforms;android-33 build-tools;30.0.3'
-
-      - name: 接受 Android 许可证
-        run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+          node-version: '20'
 
       - name: 安装 Cordova
         run: npm install -g cordova
 
-      - name: 准备 Cordova 项目并构建
+      - name: 初始化 Cordova 并构建 Release
         run: |
-          # 创建项目
-          cordova create build_tmp com.example.accordion "手风琴键盘"
+          # 1. 创建一个临时构建目录
+          cordova create build_project com.example.accordion "AccordionKeyboard"
           
-          # 复制文件
-          cp -f index.html build_tmp/www/
-          cp -f rough.js build_tmp/www/
-          cp -f smplr.js build_tmp/www/
-          cp -f soundfont2.js build_tmp/www/
-          cp -f 8bitsf.SF2 build_tmp/www/
+          # 2. 将仓库根目录的源码（HTML/JS/CSS）同步到 Cordova 的 www 目录
+          # 排除掉 build_project 自身，防止无限递归
+          rsync -av --exclude='build_project' ./ build_project/www/
           
-          echo "=== 复制后的文件列表 ==="
-          ls -la build_tmp/www/
+          cd build_project
           
-          # 添加 Android 平台
-          cd build_tmp
+          # 3. 添加 Android 平台并配置
           cordova platform add android
           
-          # 配置 config.xml
-          cat >> config.xml << 'EOF'
-      <preference name="AndroidInsecureFileModeEnabled" value="true" />
-      <preference name="AllowInlineMediaPlayback" value="true" />
-      <preference name="MediaPlaybackRequiresUserAction" value="false" />
-      <access origin="file://*" />
-      <access origin="*" />
-      EOF
+          # 修改 config.xml 支持不安全文件模式（你的特定需求）
+          sed -i '/<\/widget>/i \    <preference name="AndroidInsecureFileModeEnabled" value="true" />' config.xml
           
-          # 构建（添加详细输出）
-          echo "=== 开始构建 ==="
-          cordova build android --release --verbose
+          # 4. 执行正式版构建
+          # 使用 --device 强制生成可安装的 APK
+          cordova build android --release --device --verbose
           
-          echo "=== 构建完成，查找 APK ==="
-          find . -name "*.apk" -type f 2>/dev/null
+          # 【重要调试】打印当前生成的 APK 路径，如果这步没输出，说明构建失败了
+          echo "检查生成的 APK 文件位置："
+          find platforms/android/app/build/outputs/apk/ -name "*.apk"
 
-      - name: 查找并上传 APK（未签名版）
-        if: success()
+      - name: 签名正式版 APK
+        uses: r0adkll/sign-android-release@v1
+        id: sign_app
+        with:
+          # 路径必须与上面 find 出来的匹配
+          releaseDirectory: build_project/platforms/android/app/build/outputs/apk/release
+          signingKeyBase64: ${{ secrets.KEYSTORE_BASE64 }}
+          alias: ${{ secrets.KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+
+      - name: 上传已签名的 APK 到 Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: 手风琴键盘-未签名版
-          path: build_tmp/platforms/android/app/build/outputs/apk/release/*.apk
-          if-no-files-found: warn
+          name: 手风琴键盘-正式版
+          path: ${{ steps.sign_app.outputs.signedReleaseFile }}
+          if-no-files-found: error
