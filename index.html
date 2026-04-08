@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MIDI音高虚拟键盘</title>
-    <script src="https://unpkg.com/roughjs@4.5.2/bundled/rough.js"></script>
+    <script src="rough.js"></script>
     <style>
         * {
             margin: 0;
@@ -16,11 +16,8 @@
             overflow: hidden;
             background-color: #f5f5f5;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
             height: 100vh;
+            margin: 0;
         }
         
         h1 {
@@ -30,18 +27,21 @@
             font-weight: 300;
         }
         
-        .control-panel {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 20px;
-            background-color: #fff;
-            padding: 15px 25px;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            flex-wrap: wrap;
-            gap: 25px;
-        }
+        /* 旧的控制面板容器样式已移除 */
+        
+        /* 旧的控制面板头部样式已移除 */
+        
+        /* 旧的控制面板头部悬停样式已移除 */
+        
+        /* 旧的控制面板标题样式已移除 */
+        
+        /* 旧的控制面板切换按钮样式已移除 */
+        
+        /* 旧的控制面板切换按钮折叠样式已移除 */
+        
+        /* 旧的控制面板样式已移除 */
+        
+        /* 旧的控制面板折叠样式已移除 */
         
         .control-group {
             display: flex;
@@ -49,10 +49,7 @@
             gap: 10px;
         }
         
-        .control-panel span {
-            font-size: 1.2rem;
-            color: #333;
-        }
+        /* 旧的控制面板内文字样式已移除 */
         
         .control-btn {
             width: 40px;
@@ -154,33 +151,9 @@
             white-space: nowrap;
         }
         
-        #keyboard-container {
-            width: 95%;
-            height: 70%;
-            max-width: 1200px;
-            background-color: #f0f0f0;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-            position: relative;
-            transition: transform 0.5s ease;
-            touch-action: none;
-        }
+        /* 键盘容器样式已移动到新布局部分 */
         
-        canvas {
-            display: block;
-            width: 100%;
-            height: 100%;
-            touch-action: none;
-        }
-        
-        .instructions {
-            margin-top: 20px;
-            color: #666;
-            text-align: center;
-            max-width: 500px;
-            line-height: 1.5;
-        }
+        /* 说明文字样式已移动到新布局部分 */
         
         .touch-indicator {
             position: absolute;
@@ -217,125 +190,367 @@
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
-        
+
+        /* 新布局样式 */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+        }
+
+        .app-header {
+            text-align: center;
+            padding: 10px;
+            background-color: #fff;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+        }
+
+        .app-header h1 {
+            margin: 0;
+            color: #333;
+            font-weight: 300;
+            font-size: 1.8rem;
+        }
+
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* 侧边栏样式 */
+        .sidebar-container {
+            display: flex;
+            flex-direction: column;
+            width: 320px;
+            min-width: 320px;
+            background-color: #fff;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            z-index: 5;
+            overflow: hidden;
+        }
+
+        .sidebar-container.collapsed {
+            width: 0;
+            min-width: 0;
+            overflow: visible;
+        }
+
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px 20px;
+            background-color: #f8f8f8;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            user-select: none;
+        }
+
+        .sidebar-header h2 {
+            margin: 0;
+            font-size: 1.2rem;
+            color: #333;
+            font-weight: 400;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar-container.collapsed .sidebar-header {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 60px;
+            height: 60px;
+            padding: 0;
+            justify-content: center;
+            border-radius: 0 10px 10px 0;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            background-color: #4a90e2;
+            color: white;
+            border-bottom: none;
+            z-index: 10;
+        }
+
+        .sidebar-container.collapsed .sidebar-header h2 {
+            opacity: 0;
+            display: none;
+        }
+
+        .sidebar-toggle {
+            font-size: 1.2rem;
+            color: #4a90e2;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-container.collapsed .sidebar-toggle {
+            color: white;
+            font-size: 1.5rem;
+        }
+
+        .sidebar-panel {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+            overflow-y: auto;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar-container.collapsed .sidebar-panel {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* 键盘主区域 */
+        .keyboard-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow: hidden;
+            transition: padding 0.3s ease;
+        }
+
+        .sidebar-container.collapsed ~ .keyboard-main {
+            padding-left: 70px;
+        }
+
+        #keyboard-container {
+            width: 100%;
+            height: 100%;
+            max-width: 1200px;
+            background-color: #f0f0f0;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            position: relative;
+            transition: transform 0.5s ease;
+            touch-action: none;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+
+        .instructions {
+            margin-top: 15px;
+            color: #666;
+            text-align: center;
+            max-width: 500px;
+            line-height: 1.5;
+        }
+
         @media (max-width: 768px) {
             h1 {
                 font-size: 1.5rem;
             }
-            
-            .control-panel {
+
+            .app-header h1 {
+                font-size: 1.5rem;
+                padding: 5px;
+            }
+
+            .sidebar-container {
+                width: 250px;
+                min-width: 250px;
+            }
+
+            .sidebar-container.collapsed {
+                width: 0;
+                min-width: 0;
+                overflow: visible;
+            }
+
+            .sidebar-header {
                 padding: 10px 15px;
-                flex-direction: column;
+            }
+
+            .sidebar-header h2 {
+                font-size: 1rem;
+            }
+
+            .sidebar-container.collapsed .sidebar-header {
+                position: absolute;
+                left: 0;
+                top: 50%;
+                transform: translateY(-50%);
+                width: 50px;
+                height: 50px;
+                padding: 0;
+                justify-content: center;
+                border-radius: 0 10px 10px 0;
+                box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+                background-color: #4a90e2;
+                color: white;
+                border-bottom: none;
+                z-index: 10;
+            }
+
+            .sidebar-container.collapsed .sidebar-header h2 {
+                opacity: 0;
+                display: none;
+            }
+
+            .sidebar-container.collapsed .sidebar-toggle {
+                color: white;
+                font-size: 1.3rem;
+            }
+
+            .sidebar-panel {
+                padding: 15px;
                 gap: 15px;
             }
-            
+
             .control-group {
                 gap: 8px;
                 flex-wrap: wrap;
+                justify-content: center;
             }
-            
+
             .control-btn, .toggle-btn {
                 width: 35px;
                 height: 35px;
                 font-size: 1.2rem;
             }
-            
+
             .value-display {
                 font-size: 1.1rem;
                 min-width: 50px;
             }
-            
+
             .sf2-url-input {
                 width: 180px;
                 font-size: 0.7rem;
             }
-            
+
             .load-sf2-btn {
                 padding: 6px 12px;
                 font-size: 0.75rem;
             }
-            
+
             #keyboard-container {
-                height: 60%;
+                height: 70%;
                 padding: 15px;
             }
-            
+
+            .keyboard-main {
+                padding: 10px;
+                transition: padding 0.3s ease;
+            }
+
+            .sidebar-container.collapsed ~ .keyboard-main {
+                padding-left: 60px;
+            }
+
             .instructions {
                 font-size: 0.9rem;
-                padding: 0 15px;
+                padding: 0 10px;
             }
-            
+
+            /* 强制横屏布局，移除竖屏旋转 */
             @media (orientation: portrait) {
-                #keyboard-container {
+                /* 竖屏时保持横屏布局 */
+                body {
                     transform: rotate(90deg);
-                    width: 90vh;
-                    height: 80vw;
+                    transform-origin: center center;
+                    width: 100vh;
+                    height: 100vw;
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    margin-top: -50vw;
+                    margin-left: -50vh;
                 }
-                
+
                 .rotate-notice {
-                    display: flex;
+                    display: none; /* 移除旋转提示 */
                 }
             }
         }
     </style>
 </head>
 <body>
-    <h1>MIDI音高虚拟键盘</h1>
-    
-    <div class="control-panel">
-        <div class="control-group">
-            <button class="control-btn minus-btn" id="minus-btn">-</button>
-            <span class="value-display" id="value1-display">48</span>
-            <span>To</span>
-            <span class="value-display" id="value2-display">83</span>
-            <button class="control-btn plus-btn" id="plus-btn">+</button>
-        </div>
-    
-        <div class="control-group">
-            <span>音色:</span>
-            <select id="instrument-select">
-                <option value="accordion" selected>手风琴</option>
-                <option value="acoustic_grand_piano">钢琴</option>
-                <option value="bright_acoustic_piano">明亮钢琴</option>
-                <option value="electric_grand_piano">电钢琴</option>
-                <option value="honkytonk_piano">古钢琴</option>
-                <option value="electric_piano_1">罗德电钢琴</option>
-                <option value="electric_piano_2">合唱钢琴</option>
-                <option value="drawbar_organ">哈蒙德风琴</option>
-                <option value="harpsichord">击弦古钢琴</option>
-                <option value="celesta">钢片琴</option>
-                <option value="glockenspiel">钟琴</option>
-                <option value="music_box">音乐盒</option>
-                <option value="vibraphone">颤音琴</option>
-                <option value="marimba">马林巴</option>
-                <option value="xylophone">木琴</option>
-                <option value="tubular_bells">管钟</option>
-                <option value="dulcimer">大扬琴</option>
-                <option value="organ">拉杆风琴</option>
-                <option value="reed_organ">簧片风琴</option>
-                <option value="harmonica">口琴</option>
-                <option value="bandoneon">探戈手风琴</option>
-            </select>
-        </div>
-        
-        <div class="control-group">
-            <span>SF2文件:</span>
-            <input type="text" id="sf2-url" class="sf2-url-input" placeholder="输入SF2文件URL" value="https://smpldsnds.github.io/soundfonts/soundfonts/galaxy-electric-pianos.sf2">
-            <button id="load-sf2" class="load-sf2-btn">加载SF2</button>
-            <span id="sf2-status" class="status-text"></span>
-        </div>
-        
-        <div class="control-group">
-            <button class="toggle-btn active" id="toggle-notes">A</button>
-            <span>显示音高</span>
+    <div class="app-container">
+        <header class="app-header">
+            <h1>MIDI音高虚拟键盘</h1>
+        </header>
+
+        <div class="main-content">
+            <!-- 侧边控制面板 -->
+            <aside class="sidebar-container collapsed">
+                <div class="sidebar-header" id="sidebar-header">
+                    <h2>控制面板</h2>
+                    <span class="sidebar-toggle" id="sidebar-toggle">▶</span>
+                </div>
+                <div class="sidebar-panel" id="sidebar-panel">
+                    <div class="control-group">
+                        <button class="control-btn minus-btn" id="minus-btn">-</button>
+                        <span class="value-display" id="value1-display">48</span>
+                        <span>To</span>
+                        <span class="value-display" id="value2-display">83</span>
+                        <button class="control-btn plus-btn" id="plus-btn">+</button>
+                    </div>
+
+                    <div class="control-group">
+                        <span>音色:</span>
+                        <select id="instrument-select">
+                            <option value="accordion" selected>手风琴</option>
+                            <option value="acoustic_grand_piano">钢琴</option>
+                            <option value="bright_acoustic_piano">明亮钢琴</option>
+                            <option value="electric_grand_piano">电钢琴</option>
+                            <option value="honkytonk_piano">古钢琴</option>
+                            <option value="electric_piano_1">罗德电钢琴</option>
+                            <option value="electric_piano_2">合唱钢琴</option>
+                            <option value="drawbar_organ">哈蒙德风琴</option>
+                            <option value="harpsichord">击弦古钢琴</option>
+                            <option value="celesta">钢片琴</option>
+                            <option value="glockenspiel">钟琴</option>
+                            <option value="music_box">音乐盒</option>
+                            <option value="vibraphone">颤音琴</option>
+                            <option value="marimba">马林巴</option>
+                            <option value="xylophone">木琴</option>
+                            <option value="tubular_bells">管钟</option>
+                            <option value="dulcimer">大扬琴</option>
+                            <option value="organ">拉杆风琴</option>
+                            <option value="reed_organ">簧片风琴</option>
+                            <option value="harmonica">口琴</option>
+                            <option value="bandoneon">探戈手风琴</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <span>SF2文件:</span>
+                        <input type="text" id="sf2-url" class="sf2-url-input" placeholder="输入SF2文件URL" value="./8bitsf.SF2">
+                        <button id="load-sf2" class="load-sf2-btn">加载SF2</button>
+                        <span id="sf2-status" class="status-text"></span>
+                    </div>
+
+                    <div class="control-group">
+                        <button class="toggle-btn active" id="toggle-notes">A</button>
+                        <span>显示音高</span>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- 键盘区域 -->
+            <main class="keyboard-main">
+                <div id="keyboard-container">
+                    <canvas id="keyboard-canvas"></canvas>
+                </div>
+            </main>
         </div>
     </div>
-    
-    <div id="keyboard-container">
-        <canvas id="keyboard-canvas"></canvas>
-    </div>
-    
-    <p class="instructions">按下圆形琴键发声，松开停止。手指按压力度影响音量。支持SF2音色库加载。</p>
 
     <div class="rotate-notice">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -347,8 +562,8 @@
     <script type="importmap">
         {
             "imports": {
-                "smplr": "https://cdn.jsdelivr.net/npm/smplr@0.20.0/dist/index.mjs",
-                "soundfont2": "https://cdn.skypack.dev/soundfont2"
+                "smplr": "./smplr.js",
+                "soundfont2": "./soundfont2.js"
             }
         }
     </script>
@@ -626,6 +841,8 @@
         
         function resizeCanvas() {
             const container = document.getElementById('keyboard-container');
+            // 强制重排以确保获取最新尺寸
+            container.offsetWidth;
             canvas.width = container.clientWidth;
             canvas.height = container.clientHeight;
             if (!roughCanvas) roughCanvas = rough.canvas(canvas);
@@ -638,19 +855,38 @@
             keyPositions = [];
             const rows = keyboardLayout.length;
             const cols = keyboardLayout[0].length;
-            const keyDiameter = Math.min(
-                canvas.width / (cols * 1.2),
-                canvas.height / (rows * 2)
-            );
-            const startX = (canvas.width - (cols * keyDiameter * 1.1)) / 2;
-            const startY = (canvas.height - (rows * keyDiameter * 1.1)) / 2;
+
+            // 键盘布局常数
+            const H_SPACING = 1.1;
+            const V_SPACING = 1.1;
+            const ROW_OFFSET = 0.55;
+
+            // 键盘中心点总宽度和高度（键中心到中心距离）
+            const centerWidth = (cols - 1) * H_SPACING + (rows - 1) * ROW_OFFSET;
+            const centerHeight = (rows - 1) * V_SPACING;
+
+            // 键盘实际占用尺寸（包括键半径）
+            const totalWidth = centerWidth + 1; // + 直径
+            const totalHeight = centerHeight + 1;
+
+            // 计算缩放因子，留10%边距
+            const margin = 0.9;
+            const scaleX = (canvas.width * margin) / totalWidth;
+            const scaleY = (canvas.height * margin) / totalHeight;
+            const scale = Math.min(scaleX, scaleY);
+
+            const keyDiameter = scale;
+
+            // 起始位置（第一个键中心）
+            const startX = (canvas.width - centerWidth * scale) / 2;
+            const startY = (canvas.height - centerHeight * scale) / 2;
             const startMidi = value1Options[currentIndex];
             
             for (let row = 0; row < rows; row++) {
                 for (let col = 0; col < cols; col++) {
                     const keyType = keyboardLayout[row][col];
-                    const x = startX + col * keyDiameter * 1.1 + row * keyDiameter * 0.55;
-                    const y = startY + row * keyDiameter * 1.1;
+                    const x = startX + col * keyDiameter * H_SPACING + row * keyDiameter * ROW_OFFSET;
+                    const y = startY + row * keyDiameter * V_SPACING;
                     const midiNote = startMidi + row + col * 3;
                     
                     keyPositions.push({
@@ -877,6 +1113,12 @@
             await initAudio();
             await loadBuiltinInstrument("accordion");
             document.getElementById('instrument-select').value = "accordion";
+
+            // 绑定侧边栏切换事件
+            const sidebarHeader = document.getElementById('sidebar-header');
+            if (sidebarHeader) {
+                sidebarHeader.addEventListener('click', toggleSidebar);
+            }
         });
         window.addEventListener('resize', resizeCanvas);
         window.addEventListener('resize', handleOrientationChange);
@@ -893,6 +1135,22 @@
         }
         document.addEventListener('click', activateAudio);
         document.addEventListener('touchstart', activateAudio);
+        
+        // 侧边栏切换
+        function toggleSidebar() {
+            const sidebar = document.querySelector('.sidebar-container');
+            const toggleButton = document.getElementById('sidebar-toggle');
+            const isCollapsed = sidebar.classList.toggle('collapsed');
+            toggleButton.textContent = isCollapsed ? '▶' : '◀';
+            // 侧边栏切换后重新调整画布大小，等待CSS过渡完成
+            setTimeout(() => {
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        resizeCanvas();
+                    });
+                });
+            }, 300);
+        }
     </script>
 </body>
 </html>
