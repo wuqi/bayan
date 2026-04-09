@@ -45,6 +45,7 @@ jobs:
           cp smplr.js app/www/
           cp soundfont2.js app/www/
           cp 8bitsf.SF2 app/www/
+          cp icon.png app/www/
           
           echo "=== 文件列表 ==="
           ls -la app/www/
@@ -58,6 +59,7 @@ jobs:
         run: |
           cd app
           # 用 sed 在 </widget> 标签前插入配置
+          sed -i '/<\/widget>/i \    <icon src="icon.png" />' config.xml
           sed -i '/<\/widget>/i \    <preference name="AndroidInsecureFileModeEnabled" value="true" />' config.xml
           sed -i '/<\/widget>/i \    <preference name="AllowInlineMediaPlayback" value="true" />' config.xml
           sed -i '/<\/widget>/i \    <preference name="MediaPlaybackRequiresUserAction" value="false" />' config.xml
