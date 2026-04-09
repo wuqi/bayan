@@ -73,6 +73,10 @@ jobs:
       - name: 构建 Release APK
         run: |
           cd app
+          # 显示Cordova版本
+          cordova --version
+          # 显示Android平台信息
+          cordova platform ls
           # 强制生成 APK 而不是 AAB
           cordova build android --release -- --packageType=apk --verbose
 
@@ -80,6 +84,19 @@ jobs:
           find . -name "*.apk" -type f | head -20
           echo "=== 查找生成的 AAB 文件 ==="
           find . -name "*.aab" -type f | head -20
+          # 显示APK文件信息
+          APK_FILE=$(find . -name "*.apk" -type f | grep -v debug | head -1)
+          if [ -f "$APK_FILE" ]; then
+            echo "=== APK 文件信息 ==="
+            ls -la "$APK_FILE"
+            # 尝试查看APK的包信息
+            if command -v aapt &> /dev/null; then
+              echo "=== APK 包信息 ==="
+              aapt dump badging "$APK_FILE" | head -20
+            else
+              echo "aapt 命令不可用，无法查看包信息"
+            fi
+          fi
 
       - name: 签名 APK
         run: |
@@ -189,11 +206,38 @@ jobs:
 
           echo "✓ APK 签名成功"
 
+          # 查找 apksigner 工具（用于 V2 签名）
+          APKSIGNER_PATH=$(find $ANDROID_HOME/build-tools -name "apksigner" -type f | head -1)
+          if [ -n "$APKSIGNER_PATH" ]; then
+            echo "使用 apksigner 进行 V2 签名"
+            if "$APKSIGNER_PATH" sign \
+              --ks keystore.jks \
+              --ks-pass pass:"${{ secrets.KEYSTORE_PASSWORD }}" \
+              --key-pass pass:"${{ secrets.KEY_PASSWORD }}" \
+              --ks-key-alias "${{ secrets.KEY_ALIAS }}" \
+              --v1-signing-enabled true \
+              --v2-signing-enabled true \
+              "$UNSIGNED_APK"; then
+              echo "✓ V2 签名成功"
+            else
+              echo "⚠️ V2 签名失败，继续使用 V1 签名"
+            fi
+          else
+            echo "⚠️ apksigner 未找到，只使用 V1 签名"
+          fi
+
           # 优化 APK (zipalign)
           ZIPALIGN_PATH=$(find $ANDROID_HOME/build-tools -name "zipalign" -type f | head -1)
           if [ -n "$ZIPALIGN_PATH" ]; then
             echo "使用 zipalign: $ZIPALIGN_PATH"
-            if ! "$ZIPALIGN_PATH" -v 4 "$UNSIGNED_APK" signed_app.apk; then
+            # 先创建临时文件
+            TEMP_APK="temp_signed_app.apk"
+            if "$ZIPALIGN_PATH" -v 4 "$UNSIGNED_APK" "$TEMP_APK"; then
+              echo "✓ zipalign 成功"
+              mv "$TEMP_APK" signed_app.apk
+              # 验证对齐
+              "$ZIPALIGN_PATH" -c -v 4 signed_app.apk
+            else
               echo "警告: zipalign 失败，直接复制 APK"
               cp "$UNSIGNED_APK" signed_app.apk
             fi
