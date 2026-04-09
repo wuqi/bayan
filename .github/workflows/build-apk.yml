@@ -45,7 +45,7 @@ jobs:
           cp smplr.js app/www/
           cp soundfont2.js app/www/
           cp 8bitsf.SF2 app/www/
-          cp icon.png app/www/
+          cp icon.png app/
           
           echo "=== 文件列表 ==="
           ls -la app/www/

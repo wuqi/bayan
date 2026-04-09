@@ -48,7 +48,7 @@ jobs:
           cp smplr.js app/www/
           cp soundfont2.js app/www/
           cp 8bitsf.SF2 app/www/
-          cp icon.png app/www/
+          cp icon.png app/
 
       - name: 添加 Android 平台
         run: |
