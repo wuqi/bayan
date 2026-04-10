@@ -23,11 +23,6 @@
             height: 100vh;
             margin: 0;
             padding: 0;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
         }
         
         h1 {
@@ -204,13 +199,10 @@
         }
 
         .sidebar-container.collapsed .sidebar-header {
-            transform: translateX(0);
-        }
-
-        .sidebar-header {
             position: fixed;
             left: 0;
             bottom: 20px;
+            transform: none;
             width: 50px;
             height: 50px;
             padding: 0;
@@ -223,8 +215,17 @@
             z-index: 1000;
             cursor: pointer;
             touch-action: manipulation;
+        }
+
+        .sidebar-header {
             display: flex;
             align-items: center;
+            justify-content: space-between;
+            padding: 15px 20px;
+            background-color: #f8f8f8;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            user-select: none;
             transition: all 0.3s ease;
         }
 
@@ -234,39 +235,22 @@
             color: #333;
             font-weight: 400;
             transition: opacity 0.3s ease;
+        }
+
+        .sidebar-container.collapsed .sidebar-header h2 {
             opacity: 0;
             display: none;
         }
 
-        .sidebar-container:not(.collapsed) .sidebar-header {
-            position: relative;
-            left: 0;
-            bottom: 0;
-            width: 100%;
-            height: auto;
-            padding: 15px 20px;
-            justify-content: space-between;
-            border-radius: 0;
-            box-shadow: none;
-            background-color: #f8f8f8;
-            color: #333;
-            border-bottom: 1px solid #eee;
-        }
-
-        .sidebar-container:not(.collapsed) .sidebar-header h2 {
-            opacity: 1;
-            display: block;
-        }
-
         .sidebar-toggle {
-            font-size: 1.5rem;
-            color: white;
+            font-size: 1.2rem;
+            color: #4a90e2;
             transition: transform 0.3s ease;
         }
 
-        .sidebar-container:not(.collapsed) .sidebar-toggle {
-            color: #4a90e2;
-            font-size: 1.2rem;
+        .sidebar-container.collapsed .sidebar-toggle {
+            color: white;
+            font-size: 1.5rem;
         }
 
         .sidebar-panel {
@@ -366,7 +350,7 @@
                 box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
             }
 
-            .sidebar-container:not(.collapsed) .sidebar-header {
+            .sidebar-header.expanded {
                 padding: 10px 15px;
             }
 
@@ -453,11 +437,11 @@
 
         <div class="main-content">
             <!-- 侧边控制面板 -->
-            <div class="sidebar-header" id="sidebar-header">
-                <h2>控制面板</h2>
-                <span class="sidebar-toggle" id="sidebar-toggle">▶</span>
-            </div>
             <aside class="sidebar-container collapsed">
+                <div class="sidebar-header" id="sidebar-header">
+                    <h2>控制面板</h2>
+                    <span class="sidebar-toggle" id="sidebar-toggle">▶</span>
+                </div>
                 <div class="sidebar-panel" id="sidebar-panel">
                     <div class="control-group">
                         <button class="control-btn minus-btn" id="minus-btn">-</button>
@@ -1210,6 +1194,7 @@
             const toggleButton = document.getElementById('sidebar-toggle');
             const isCollapsed = sidebar.classList.toggle('collapsed');
             toggleButton.textContent = isCollapsed ? '▶' : '◀';
+            
             // 侧边栏切换后重新调整画布大小，等待CSS过渡完成
             setTimeout(() => {
                 requestAnimationFrame(() => {
