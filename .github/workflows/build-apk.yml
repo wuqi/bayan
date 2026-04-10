@@ -63,6 +63,9 @@ jobs:
           sed -i '/<\/widget>/i \    <preference name="AndroidInsecureFileModeEnabled" value="true" />' config.xml
           sed -i '/<\/widget>/i \    <preference name="AllowInlineMediaPlayback" value="true" />' config.xml
           sed -i '/<\/widget>/i \    <preference name="MediaPlaybackRequiresUserAction" value="false" />' config.xml
+          sed -i '/<\/widget>/i \    <preference name="Fullscreen" value="true" />' config.xml
+          sed -i '/<\/widget>/i \    <preference name="Orientation" value="landscape" />' config.xml
+          sed -i '/<\/widget>/i \    <preference name="AndroidLaunchMode" value="singleTask" />' config.xml
           
           # 验证 XML 结构
           head -20 config.xml
