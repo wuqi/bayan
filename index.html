@@ -194,7 +194,7 @@
             background-color: #fff;
             box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
             transition: transform 0.3s ease;
-            z-index: 5;
+            z-index: 1000;
             overflow: hidden;
         }
 
@@ -794,16 +794,30 @@
             if (soundfontInstrument && isAudioReady) {
                 try {
                     const now = audioCtx.currentTime;
-                    // smplr 的 start 方法返回一个 stop 函数
-                    const stopFn = soundfontInstrument.start({
-                        note: midiNumber,
-                        velocity: vel,
-                        time: now
-                    });
-                    activeNotes.set(midiNumber, { stopFunction: stopFn, type: "smplr" });
-                    return;
+                    // 检查soundfontInstrument是否有start方法
+                    if (typeof soundfontInstrument.start === 'function') {
+                        // 尝试使用smplr风格的start方法
+                        const stopFn = soundfontInstrument.start({
+                            note: midiNumber,
+                            velocity: vel,
+                            time: now
+                        });
+                        activeNotes.set(midiNumber, { stopFunction: stopFn, type: "smplr" });
+                        return;
+                    } else if (typeof soundfontInstrument.play === 'function') {
+                        // 尝试使用其他风格的play方法
+                        const stopFn = soundfontInstrument.play({
+                            note: midiNumber,
+                            velocity: vel,
+                            time: now
+                        });
+                        activeNotes.set(midiNumber, { stopFunction: stopFn, type: "other" });
+                        return;
+                    } else {
+                        console.error("soundfontInstrument没有start或play方法", soundfontInstrument);
+                    }
                 } catch(e) {
-                    console.warn("smplr播放出错", e);
+                    console.warn("播放出错", e, soundfontInstrument);
                 }
             }
             
