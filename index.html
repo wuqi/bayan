@@ -177,6 +177,43 @@
             overflow: hidden;
         }
 
+        /* 浮动切换按钮 */
+        .sidebar-toggle-btn {
+            position: fixed;
+            left: 0;
+            bottom: 20px;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0 10px 10px 0;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            background-color: #4a90e2;
+            color: white;
+            z-index: 9999;
+            cursor: pointer;
+            touch-action: manipulation;
+            transition: all 0.3s ease;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        .sidebar-toggle-btn:active {
+            background-color: #357abd;
+            transform: scale(0.95);
+        }
+
+        .sidebar-toggle-btn.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #toggle-icon {
+            font-size: 1.5rem;
+            transition: transform 0.3s ease;
+        }
+
         /* 侧边栏样式 */
         .sidebar-container {
             position: absolute;
@@ -195,69 +232,35 @@
 
         .sidebar-container.collapsed {
             transform: translateX(-100%);
-            overflow: visible;
         }
 
         .sidebar-header {
-            position: fixed;
-            left: 0;
-            bottom: 20px;
-            width: 50px;
-            height: 50px;
-            padding: 0;
-            justify-content: center;
-            border-radius: 0 10px 10px 0;
-            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            padding: 15px 20px;
             background-color: #4a90e2;
             color: white;
-            border-bottom: none;
-            z-index: 1000;
-            cursor: pointer;
-            touch-action: manipulation;
             display: flex;
-            align-items: center;
-            transition: all 0.3s ease;
-        }
-
-        .sidebar-container:not(.collapsed) .sidebar-header {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: auto;
-            padding: 15px 20px;
             justify-content: space-between;
-            border-radius: 0;
-            box-shadow: none;
-            background-color: #f8f8f8;
-            color: #333;
-            border-bottom: 1px solid #eee;
+            align-items: center;
+            border-bottom: 2px solid #357abd;
         }
 
         .sidebar-header h2 {
             margin: 0;
             font-size: 1.2rem;
-            color: #333;
-            font-weight: 400;
-            transition: opacity 0.3s ease;
-            opacity: 0;
-            display: none;
-        }
-
-        .sidebar-container:not(.collapsed) .sidebar-header h2 {
-            opacity: 1;
-            display: block;
-        }
-
-        .sidebar-toggle {
-            font-size: 1.5rem;
             color: white;
-            transition: transform 0.3s ease;
+            font-weight: 400;
         }
 
-        .sidebar-container:not(.collapsed) .sidebar-toggle {
-            color: #4a90e2;
-            font-size: 1.2rem;
+        .sidebar-close {
+            font-size: 1.5rem;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .sidebar-close:active {
+            background-color: rgba(255, 255, 255, 0.3);
         }
 
         .sidebar-panel {
@@ -336,39 +339,28 @@
                 width: 250px;
             }
 
-            .sidebar-container.collapsed {
-                transform: translateX(-100%);
-                overflow: visible;
+            .sidebar-toggle-btn {
+                bottom: 15px;
+                width: 45px;
+                height: 45px;
+                border-radius: 0 8px 8px 0;
+            }
+
+            #toggle-icon {
+                font-size: 1.3rem;
             }
 
             .sidebar-header {
-                padding: 10px 15px;
+                padding: 12px 15px;
             }
 
             .sidebar-header h2 {
                 font-size: 1rem;
             }
 
-            .sidebar-header {
-                bottom: 15px;
-                width: 45px;
-                height: 45px;
-                border-radius: 0 8px 8px 0;
-                box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
-            }
-
-            .sidebar-header.expanded {
-                padding: 10px 15px;
-            }
-
-            .sidebar-container.collapsed .sidebar-header h2 {
-                opacity: 0;
-                display: none;
-            }
-
-            .sidebar-container.collapsed .sidebar-toggle {
-                color: white;
+            .sidebar-close {
                 font-size: 1.3rem;
+                padding: 5px 8px;
             }
 
             .sidebar-panel {
@@ -443,12 +435,17 @@
         </header>
 
         <div class="main-content">
-            <!-- 侧边控制面板 -->
-            <div class="sidebar-header" id="sidebar-header">
-                <h2>控制面板</h2>
-                <span class="sidebar-toggle" id="sidebar-toggle">▶</span>
+            <!-- 浮动切换按钮 -->
+            <div class="sidebar-toggle-btn" id="sidebar-toggle-btn">
+                <span id="toggle-icon">▶</span>
             </div>
-            <aside class="sidebar-container collapsed">
+            
+            <!-- 侧边控制面板 -->
+            <aside class="sidebar-container collapsed" id="sidebar-container">
+                <div class="sidebar-header" id="sidebar-header">
+                    <h2>控制面板</h2>
+                    <span class="sidebar-close" id="sidebar-close">✕</span>
+                </div>
                 <div class="sidebar-panel" id="sidebar-panel">
                     <div class="control-group">
                         <button class="control-btn minus-btn" id="minus-btn">-</button>
@@ -1160,6 +1157,30 @@
             setTimeout(resizeCanvas, 100);
         }
         
+        // 侧边栏切换
+        function toggleSidebar(show) {
+            const sidebar = document.getElementById('sidebar-container');
+            const toggleBtn = document.getElementById('sidebar-toggle-btn');
+            const toggleIcon = document.getElementById('toggle-icon');
+            
+            if (show) {
+                sidebar.classList.remove('collapsed');
+                toggleBtn.classList.add('hidden');
+            } else {
+                sidebar.classList.add('collapsed');
+                toggleBtn.classList.remove('hidden');
+            }
+            
+            // 侧边栏切换后重新调整画布大小，等待CSS过渡完成
+            setTimeout(() => {
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        resizeCanvas();
+                    });
+                });
+            }, 300);
+        }
+
         // 初始化
         window.addEventListener('load', async () => {
             resizeCanvas();
@@ -1169,14 +1190,51 @@
             document.getElementById('instrument-select').value = "accordion";
 
             // 绑定侧边栏切换事件
-            const sidebarHeader = document.getElementById('sidebar-header');
-            if (sidebarHeader) {
-                sidebarHeader.addEventListener('click', toggleSidebar);
-                // 移动端触摸支持 - 只使用 touchend，避免与 click 重复触发
-                sidebarHeader.addEventListener('touchend', (e) => {
+            const toggleBtn = document.getElementById('sidebar-toggle-btn');
+            const closeBtn = document.getElementById('sidebar-close');
+            
+            let touchHandled = false;
+            
+            // 浮动按钮点击 - 展开
+            if (toggleBtn) {
+                toggleBtn.addEventListener('touchend', (e) => {
                     e.preventDefault();
-                    toggleSidebar();
+                    if (!touchHandled) {
+                        touchHandled = true;
+                        toggleSidebar(true);
+                        setTimeout(() => { touchHandled = false; }, 300);
+                    }
                 }, { passive: false });
+                
+                toggleBtn.addEventListener('click', (e) => {
+                    if (touchHandled) {
+                        e.preventDefault();
+                        return;
+                    }
+                    toggleSidebar(true);
+                });
+            }
+            
+            // 关闭按钮点击 - 收起
+            if (closeBtn) {
+                closeBtn.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!touchHandled) {
+                        touchHandled = true;
+                        toggleSidebar(false);
+                        setTimeout(() => { touchHandled = false; }, 300);
+                    }
+                }, { passive: false });
+                
+                closeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (touchHandled) {
+                        e.preventDefault();
+                        return;
+                    }
+                    toggleSidebar(false);
+                });
             }
         });
         window.addEventListener('resize', resizeCanvas);
@@ -1194,23 +1252,7 @@
         }
         document.addEventListener('click', activateAudio);
         document.addEventListener('touchstart', activateAudio);
-        
-        // 侧边栏切换
-        function toggleSidebar() {
-            const sidebar = document.querySelector('.sidebar-container');
-            const toggleButton = document.getElementById('sidebar-toggle');
-            const isCollapsed = sidebar.classList.toggle('collapsed');
-            toggleButton.textContent = isCollapsed ? '▶' : '◀';
-            
-            // 侧边栏切换后重新调整画布大小，等待CSS过渡完成
-            setTimeout(() => {
-                requestAnimationFrame(() => {
-                    requestAnimationFrame(() => {
-                        resizeCanvas();
-                    });
-                });
-            }, 300);
-        }
+
     </script>
 </body>
 </html>
