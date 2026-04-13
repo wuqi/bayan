@@ -1172,15 +1172,11 @@
             const sidebarHeader = document.getElementById('sidebar-header');
             if (sidebarHeader) {
                 sidebarHeader.addEventListener('click', toggleSidebar);
-                // 移动端触摸支持
-                sidebarHeader.addEventListener('touchstart', (e) => {
-                    // 直接触发切换，不阻止默认行为
-                    toggleSidebar();
-                });
-                // 也添加touchend事件，确保在移动设备上能够正确触发
+                // 移动端触摸支持 - 只使用 touchend，避免与 click 重复触发
                 sidebarHeader.addEventListener('touchend', (e) => {
+                    e.preventDefault();
                     toggleSidebar();
-                });
+                }, { passive: false });
             }
         });
         window.addEventListener('resize', resizeCanvas);

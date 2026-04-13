@@ -113,16 +113,8 @@ jobs:
                   </config-file>
                   
                   <config-file target="AndroidManifest.xml" parent="/manifest/application">
-                      <application 
-                          android:usesCleartextTraffic="true"
-                          android:requestLegacyExternalStorage="true"
-                          android:allowBackup="true"
-                          android:fullBackupContent="true"
-                          android:icon="@mipmap/ic_launcher"
-                          android:label="@string/app_name"
-                          android:roundIcon="@mipmap/ic_launcher_round"
-                          android:supportsRtl="true"
-                          android:theme="@style/AppTheme" />
+                      <application android:usesCleartextTraffic="true" />
+                      <application android:requestLegacyExternalStorage="true" />
                   </config-file>
                   
                   <source-file src="src/android/XiaomiFix.java" target-dir="src/com/xiaomi/fix" />
@@ -256,9 +248,9 @@ jobs:
               <preference name="Orientation" value="landscape" />
               
               <!-- Android 特定配置 -->
-              <preference name="android-minSdkVersion" value="22" />
-              <preference name="android-targetSdkVersion" value="30" />
-              <preference name="android-compileSdkVersion" value="30" />
+              <preference name="android-minSdkVersion" value="24" />
+              <preference name="android-targetSdkVersion" value="34" />
+              <preference name="android-compileSdkVersion" value="34" />
               
               <!-- 安全配置 -->
               <preference name="AndroidInsecureFileModeEnabled" value="true" />
