@@ -373,68 +373,97 @@ jobs:
             exit 1
           fi
 
-      - name: 签名 APK
+      - name: 签名 APK（支持 v1+v2+v3）
         run: |
-          echo "=== 检查密钥库配置 ==="
+          cd app
+          APK_UNSIGNED="app-release-unsigned.apk"
+          
+          if [ ! -f "$APK_UNSIGNED" ]; then
+            echo "❌ 未找到 APK 文件"
+            exit 1
+          fi
+          
+          # 1. 先对齐 APK
+          echo "=== 对齐 APK ==="
+          ZIPALIGN=$(find $ANDROID_HOME/build-tools -name "zipalign" | head -1)
+          APK_ALIGNED="app-aligned.apk"
+          if [ -n "$ZIPALIGN" ]; then
+            $ZIPALIGN -v -f 4 "$APK_UNSIGNED" "$APK_ALIGNED"
+            APK_TO_SIGN="$APK_ALIGNED"
+            echo "✓ APK 对齐完成"
+          else
+            echo "⚠️ zipalign 不可用，使用未对齐 APK"
+            cp "$APK_UNSIGNED" "$APK_ALIGNED"
+            APK_TO_SIGN="$APK_ALIGNED"
+          fi
+          
+          # 2. 准备签名密钥
+          echo "=== 准备签名密钥 ==="
           KEYSTORE_BASE64="${{ secrets.KEYSTORE_BASE64 }}"
+          KS_FILE=""
           
-          if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "❌ 未配置签名密钥，生成未签名 APK"
-            cp app/app-release-unsigned.apk signed_app.apk
-            echo "请配置以下 Secrets 以启用签名："
-            echo "  - KEYSTORE_BASE64: base64 编码的 keystore 文件"
-            echo "  - KEYSTORE_PASSWORD: keystore 密码"
-            echo "  - KEY_PASSWORD: 密钥密码"
-            echo "  - KEY_ALIAS: 密钥别名"
-            exit 0
-          fi
-          
-          # 解码 keystore
-          echo "$KEYSTORE_BASE64" | tr -d '\n\r' | base64 -d > keystore.jks
-          
-          if [ ! -s keystore.jks ]; then
-            echo "❌ Keystore 文件无效"
-            cp app/app-release-unsigned.apk signed_app.apk
-            exit 0
-          fi
-          
-          # 验证 keystore
-          if keytool -list -keystore keystore.jks -storepass "${{ secrets.KEYSTORE_PASSWORD }}" > /dev/null 2>&1; then
-            echo "✓ Keystore 验证成功"
-          else
-            echo "❌ Keystore 验证失败"
-            cp app/app-release-unsigned.apk signed_app.apk
-            exit 0
-          fi
-          
-          # 签名 APK
-          echo "开始签名 APK..."
-          jarsigner -verbose \
-            -sigalg SHA256withRSA \
-            -digestalg SHA-256 \
-            -keystore keystore.jks \
-            -storepass "${{ secrets.KEYSTORE_PASSWORD }}" \
-            -keypass "${{ secrets.KEY_PASSWORD }}" \
-            app/app-release-unsigned.apk \
-            "${{ secrets.KEY_ALIAS }}"
-          
-          if [ $? -eq 0 ]; then
-            echo "✓ APK 签名成功"
-            
-            # 对齐优化
-            ZIPALIGN=$(find $ANDROID_HOME/build-tools -name "zipalign" | head -1)
-            if [ -n "$ZIPALIGN" ]; then
-              $ZIPALIGN -v 4 app/app-release-unsigned.apk signed_app.apk
-              echo "✓ APK 对齐完成"
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | tr -d '\n\r' | base64 -d > release.keystore
+            if [ -s release.keystore ]; then
+              if keytool -list -keystore release.keystore -storepass "${{ secrets.KEYSTORE_PASSWORD }}" > /dev/null 2>&1; then
+                echo "✓ 自定义 keystore 验证成功"
+                KS_FILE="release.keystore"
+                KS_PASS="${{ secrets.KEYSTORE_PASSWORD }}"
+                KEY_PASS="${{ secrets.KEY_PASSWORD }}"
+                KEY_ALIAS="${{ secrets.KEY_ALIAS }}"
+              else
+                echo "⚠️ 自定义 keystore 验证失败"
+              fi
             else
-              cp app/app-release-unsigned.apk signed_app.apk
+              echo "⚠️ 自定义 keystore 解码后为空"
             fi
-          else
-            echo "❌ APK 签名失败"
-            cp app/app-release-unsigned.apk signed_app.apk
           fi
           
-          echo "=== APK 信息 ==="
+          if [ -z "$KS_FILE" ]; then
+            echo "生成临时签名密钥（兜底方案，所有设备均可安装）..."
+            keytool -genkey -v -keystore temp.keystore \
+              -alias tempkey -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass android -keypass android \
+              -dname "CN=Developer, OU=Dev, O=App, L=City, S=State, C=US"
+            KS_FILE="temp.keystore"
+            KS_PASS="android"
+            KEY_PASS="android"
+            KEY_ALIAS="tempkey"
+          fi
+          
+          # 3. 用 apksigner 签名（支持 v1+v2+v3 签名方案）
+          echo "=== 签名 APK ==="
+          APKSIGNER=$(find $ANDROID_HOME/build-tools -name "apksigner" | head -1)
+          if [ -n "$APKSIGNER" ]; then
+            $APKSIGNER sign \
+              --ks "$KS_FILE" \
+              --ks-key-alias "$KEY_ALIAS" \
+              --ks-pass pass:"$KS_PASS" \
+              --key-pass pass:"$KEY_PASS" \
+              --v1-signing-enabled true \
+              --v2-signing-enabled true \
+              --v3-signing-enabled true \
+              "$APK_TO_SIGN"
+            echo "✓ apksigner 签名完成（v1+v2+v3）"
+          else
+            echo "⚠️ apksigner 不可用，降级使用 jarsigner（仅 v1 签名）"
+            jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
+              -keystore "$KS_FILE" -storepass "$KS_PASS" -keypass "$KEY_PASS" \
+              "$APK_TO_SIGN" "$KEY_ALIAS"
+          fi
+          
+          # 4. 验证签名
+          echo "=== 验证签名 ==="
+          if [ -n "$APKSIGNER" ]; then
+            $APKSIGNER verify --verbose "$APK_TO_SIGN"
+          else
+            jarsigner -verify -verbose "$APK_TO_SIGN"
+          fi
+          
+          # 5. 输出最终 APK
+          cp "$APK_TO_SIGN" signed_app.apk
+          echo ""
+          echo "=== 最终 APK 信息 ==="
           ls -la signed_app.apk
 
       - name: 上传签名版 APK
