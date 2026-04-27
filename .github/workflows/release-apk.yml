@@ -375,8 +375,7 @@ jobs:
 
       - name: 签名 APK（支持 v1+v2+v3）
         run: |
-          cd app
-          APK_UNSIGNED="app-release-unsigned.apk"
+          APK_UNSIGNED="app/app-release-unsigned.apk"
           
           if [ ! -f "$APK_UNSIGNED" ]; then
             echo "❌ 未找到 APK 文件"
@@ -386,7 +385,7 @@ jobs:
           # 1. 先对齐 APK
           echo "=== 对齐 APK ==="
           ZIPALIGN=$(find $ANDROID_HOME/build-tools -name "zipalign" | head -1)
-          APK_ALIGNED="app-aligned.apk"
+          APK_ALIGNED="app/app-aligned.apk"
           if [ -n "$ZIPALIGN" ]; then
             $ZIPALIGN -v -f 4 "$APK_UNSIGNED" "$APK_ALIGNED"
             APK_TO_SIGN="$APK_ALIGNED"
@@ -403,11 +402,11 @@ jobs:
           KS_FILE=""
           
           if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | tr -d '\n\r' | base64 -d > release.keystore
-            if [ -s release.keystore ]; then
-              if keytool -list -keystore release.keystore -storepass "${{ secrets.KEYSTORE_PASSWORD }}" > /dev/null 2>&1; then
+            echo "$KEYSTORE_BASE64" | tr -d '\n\r' | base64 -d > app/release.keystore
+            if [ -s app/release.keystore ]; then
+              if keytool -list -keystore app/release.keystore -storepass "${{ secrets.KEYSTORE_PASSWORD }}" > /dev/null 2>&1; then
                 echo "✓ 自定义 keystore 验证成功"
-                KS_FILE="release.keystore"
+                KS_FILE="app/release.keystore"
                 KS_PASS="${{ secrets.KEYSTORE_PASSWORD }}"
                 KEY_PASS="${{ secrets.KEY_PASSWORD }}"
                 KEY_ALIAS="${{ secrets.KEY_ALIAS }}"
@@ -421,11 +420,11 @@ jobs:
           
           if [ -z "$KS_FILE" ]; then
             echo "生成临时签名密钥（兜底方案，所有设备均可安装）..."
-            keytool -genkey -v -keystore temp.keystore \
+            keytool -genkey -v -keystore app/temp.keystore \
               -alias tempkey -keyalg RSA -keysize 2048 -validity 10000 \
               -storepass android -keypass android \
               -dname "CN=Developer, OU=Dev, O=App, L=City, S=State, C=US"
-            KS_FILE="temp.keystore"
+            KS_FILE="app/temp.keystore"
             KS_PASS="android"
             KEY_PASS="android"
             KEY_ALIAS="tempkey"
@@ -460,11 +459,11 @@ jobs:
             jarsigner -verify -verbose "$APK_TO_SIGN"
           fi
           
-          # 5. 输出最终 APK
-          cp "$APK_TO_SIGN" signed_app.apk
+          # 5. 输出最终 APK 到工作空间根目录
+          cp "$APK_TO_SIGN" $GITHUB_WORKSPACE/signed_app.apk
           echo ""
           echo "=== 最终 APK 信息 ==="
-          ls -la signed_app.apk
+          ls -la $GITHUB_WORKSPACE/signed_app.apk
 
       - name: 上传签名版 APK
         uses: actions/upload-artifact@v4
