@@ -1025,8 +1025,8 @@
         // 触摸事件
         canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            for (let i = 0; i < e.touches.length; i++) {
-                const touch = e.touches[i];
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
                 const { x, y } = getCanvasCoords(touch.clientX, touch.clientY);
                 let intensity = touch.force || 0.5;
                 if (intensity <= 0.1) intensity = 0.5;
