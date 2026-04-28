@@ -1,4 +1,4 @@
-name: Release 构建 (签名版)
+name: Release APK
 
 on:
   push:
@@ -10,40 +10,31 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: 设置 Java 环境
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 设置 Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: 设置 Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
       - name: 安装 Android SDK
         uses: android-actions/setup-android@v3
-
-      - name: 接受 Android 许可证
-        run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
-
-      - name: 安装 Android 构建工具
-        run: |
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "build-tools;34.0.0"
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34"
 
       - name: 安装 Cordova
         run: npm install -g cordova
 
-      - name: 准备 Cordova 项目
+      - name: 创建 Cordova 项目
         run: |
           cordova create app com.example.accordion "手风琴键盘"
           cp index.html app/www/
@@ -53,154 +44,20 @@ jobs:
           cp 8bitsf.SF2 app/www/
           cp icon.png app/
 
-      - name: 添加必要的 Cordova 插件
+      - name: 添加 Android 平台
+        run: |
+          cd app
+          cordova platform add android@13.0.0
+
+      - name: 安装插件
         run: |
           cd app
           cordova plugin add cordova-plugin-inappbrowser
           cordova plugin add cordova-plugin-whitelist
-          cordova plugin add cordova-plugin-file
-          cordova plugin add cordova-plugin-android-permissions
-          cordova plugin add cordova-plugin-device
-          cordova plugin add cordova-plugin-statusbar
-          echo "已安装的插件："
-          cordova plugin list
-
-      - name: 创建自定义配置插件（解决小米兼容性问题）
-        run: |
-          cd app
-          
-          mkdir -p xiaomi-fix-plugin/src/android
-          
-          cat > xiaomi-fix-plugin/plugin.xml << 'EOF'
-          <?xml version='1.0' encoding='utf-8'?>
-          <plugin id="xiaomi-fix-plugin" version="1.0.0" xmlns="http://apache.org/cordova/ns/plugins/1.0">
-              <name>XiaomiFix</name>
-              <js-module name="XiaomiFix" src="www/XiaomiFix.js">
-                  <clobbers target="XiaomiFix" />
-              </js-module>
-              
-              <platform name="android">
-                  <config-file target="res/xml/config.xml" parent="/*">
-                      <feature name="XiaomiFix">
-                          <param name="android-package" value="com.xiaomi.fix.XiaomiFix" />
-                          <param name="onload" value="true" />
-                      </feature>
-                  </config-file>
-                  
-                  <config-file target="AndroidManifest.xml" parent="/manifest">
-                      <uses-permission android:name="android.permission.INTERNET" />
-                      <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-                      <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-                      <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-                      <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-                      <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-                  </config-file>
-                  
-                  <config-file target="AndroidManifest.xml" parent="/manifest/application">
-                      <application android:usesCleartextTraffic="true" />
-                      <application android:requestLegacyExternalStorage="true" />
-                  </config-file>
-                  
-                  <source-file src="src/android/XiaomiFix.java" target-dir="src/com/xiaomi/fix" />
-              </platform>
-          </plugin>
-          EOF
-          
-          mkdir -p xiaomi-fix-plugin/www
-          cat > xiaomi-fix-plugin/www/XiaomiFix.js << 'EOF'
-          var exec = require('cordova/exec');
-          
-          var XiaomiFix = {
-              requestPermissions: function(success, error) {
-                  exec(success, error, "XiaomiFix", "requestPermissions", []);
-              },
-              checkPermissions: function(success, error) {
-                  exec(success, error, "XiaomiFix", "checkPermissions", []);
-              }
-          };
-          
-          module.exports = XiaomiFix;
-          EOF
-          
-          cat > xiaomi-fix-plugin/src/android/XiaomiFix.java << 'EOF'
-          package com.xiaomi.fix;
-          
-          import org.apache.cordova.CordovaPlugin;
-          import org.apache.cordova.CallbackContext;
-          import org.apache.cordova.PermissionHelper;
-          import org.json.JSONArray;
-          import org.json.JSONException;
-          import android.Manifest;
-          import android.content.pm.PackageManager;
-          
-          public class XiaomiFix extends CordovaPlugin {
-              private static final String REQUEST_PERMISSIONS = "requestPermissions";
-              private static final String CHECK_PERMISSIONS = "checkPermissions";
-              private static final String[] PERMISSIONS = {
-                  Manifest.permission.READ_EXTERNAL_STORAGE,
-                  Manifest.permission.WRITE_EXTERNAL_STORAGE
-              };
-              private CallbackContext permissionCallback;
-              
-              @Override
-              public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
-                  if (REQUEST_PERMISSIONS.equals(action)) {
-                      this.requestPermissions(callbackContext);
-                      return true;
-                  } else if (CHECK_PERMISSIONS.equals(action)) {
-                      this.checkPermissions(callbackContext);
-                      return true;
-                  }
-                  return false;
-              }
-              
-              private void requestPermissions(CallbackContext callbackContext) {
-                  permissionCallback = callbackContext;
-                  if (hasPermissions()) {
-                      permissionCallback.success("Permissions already granted");
-                  } else {
-                      PermissionHelper.requestPermissions(this, 0, PERMISSIONS);
-                  }
-              }
-              
-              private void checkPermissions(CallbackContext callbackContext) {
-                  if (hasPermissions()) {
-                      callbackContext.success("All permissions granted");
-                  } else {
-                      callbackContext.error("Missing permissions");
-                  }
-              }
-              
-              private boolean hasPermissions() {
-                  for (String permission : PERMISSIONS) {
-                      if (!PermissionHelper.hasPermission(this, permission)) {
-                          return false;
-                      }
-                  }
-                  return true;
-              }
-              
-              @Override
-              public void onRequestPermissionResult(int requestCode, String[] permissions, int[] grantResults) throws JSONException {
-                  for (int result : grantResults) {
-                      if (result == PackageManager.PERMISSION_DENIED) {
-                          this.permissionCallback.error("Permission denied");
-                          return;
-                      }
-                  }
-                  this.permissionCallback.success("Permissions granted");
-              }
-          }
-          EOF
-          
-          cordova plugin add xiaomi-fix-plugin
-          
-          echo "自定义小米兼容插件已安装"
 
       - name: 配置 config.xml
         run: |
           cd app
-          
           cat > config.xml << 'EOF'
           <?xml version='1.0' encoding='utf-8'?>
           <widget id="com.example.accordion" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
@@ -208,220 +65,89 @@ jobs:
               <description>手风琴键盘应用</description>
               <author email="support@example.com" href="http://example.com">Your Name</author>
               <content src="index.html" />
-              
-              <allow-intent href="http://*/*" />
-              <allow-intent href="https://*/*" />
-              <allow-intent href="tel:*" />
-              <allow-intent href="sms:*" />
-              <allow-intent href="mailto:*" />
-              <allow-intent href="geo:*" />
-              
-              <allow-navigation href="*" />
-              <access origin="*" />
-              
               <preference name="Orientation" value="landscape" />
               <preference name="android-minSdkVersion" value="24" />
               <preference name="android-targetSdkVersion" value="34" />
               <preference name="android-compileSdkVersion" value="34" />
               <preference name="AndroidInsecureFileModeEnabled" value="true" />
               <preference name="android-useAndroidX" value="true" />
-              <preference name="android-enableJetifier" value="true" />
               <preference name="AllowInlineMediaPlayback" value="true" />
               <preference name="MediaPlaybackRequiresUserAction" value="false" />
               <preference name="Fullscreen" value="true" />
               <preference name="ShowTitle" value="false" />
-              <preference name="BackgroundColor" value="0x00000000" />
-              <preference name="SplashScreenDelay" value="3000" />
-              
               <icon src="icon.png" />
           </widget>
           EOF
-          
-          echo "config.xml 配置完成"
 
-      - name: 添加 Android 平台
-        run: |
-          cd app
-          cordova platform add android@12.0.1
-
-      - name: 修改 AndroidManifest.xml
-        run: |
-          cd app
-          MANIFEST_FILE="platforms/android/app/src/main/AndroidManifest.xml"
-          
-          if [ -f "$MANIFEST_FILE" ]; then
-            echo "修改 AndroidManifest.xml..."
-            
-            grep -q "READ_EXTERNAL_STORAGE" "$MANIFEST_FILE" || \
-              sed -i '/<manifest/a \    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />' "$MANIFEST_FILE"
-            
-            grep -q "WRITE_EXTERNAL_STORAGE" "$MANIFEST_FILE" || \
-              sed -i '/<manifest/a \    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />' "$MANIFEST_FILE"
-            
-            grep -q "INTERNET" "$MANIFEST_FILE" || \
-              sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET" />' "$MANIFEST_FILE"
-            
-            grep -q "ACCESS_NETWORK_STATE" "$MANIFEST_FILE" || \
-              sed -i '/<manifest/a \    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />' "$MANIFEST_FILE"
-            
-            sed -i 's/<application /<application android:usesCleartextTraffic="true" android:requestLegacyExternalStorage="true" android:allowBackup="true" /' "$MANIFEST_FILE"
-            
-            echo "AndroidManifest.xml 修改完成"
-          else
-            echo "警告: AndroidManifest.xml 未找到"
-          fi
-
-      - name: 配置 Gradle 属性
+      - name: 配置 Gradle
         run: |
           cd app/platforms/android
-          
           cat >> gradle.properties << 'EOF'
           android.useAndroidX=true
           android.enableJetifier=true
-          android.enableDexingArtifactTransform.desugaring=false
-          android.enableD8.desugaring=true
           android.injected.testOnly=false
           org.gradle.jvmargs=-Xmx2048m
-          android.useDeprecatedNdk=true
           EOF
-          
-          echo "Gradle 配置完成"
 
       - name: 构建 Release APK
         run: |
           cd app
-          cordova clean
-          
-          echo "=== 环境信息 ==="
-          cordova --version
-          cordova platform ls
-          cordova plugin list
-          
-          echo "开始构建 Release APK..."
-          cordova build android --release -- --packageType=apk --verbose
-          
-          echo "=== 查找生成的 APK 文件 ==="
-          find . -name "*.apk" -type f
-          
+          cordova build android --release -- --packageType=apk
+
           APK_FILE=$(find platforms/android/app/build/outputs/apk/release -name "*.apk" -type f | head -1)
           if [ -f "$APK_FILE" ]; then
             echo "找到 APK: $APK_FILE"
             cp "$APK_FILE" app-release-unsigned.apk
-            ls -la app-release-unsigned.apk
           else
-            echo "错误: 未找到 APK 文件"
+            echo "错误: 未找到 APK"
             exit 1
           fi
 
-      - name: 解码并准备签名密钥
+      - name: 准备签名密钥
         run: |
           cd app
-          
-          echo "=== 检查密钥库配置 ==="
-          KEYSTORE_BASE64="${{ secrets.KEYSTORE_BASE64 }}"
-          
-          if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "❌ 错误: KEYSTORE_BASE64 Secret 为空！"
-            exit 1
-          fi
-          
-          echo "=== 解码 keystore ==="
-          printf '%s' "$KEYSTORE_BASE64" | base64 -d > release.keystore
-          
-          if [ ! -s release.keystore ]; then
-            echo "❌ 错误: keystore 解码后为空"
-            exit 1
-          fi
-          
-          echo "=== 验证 keystore 文件 ==="
-          file release.keystore
-          ls -la release.keystore
-          
-          echo "=== 检查 keystore 内容 ==="
-          keytool -list -v -keystore release.keystore \
-            -storepass "${{ secrets.KEYSTORE_PASSWORD }}" 2>&1 | head -10
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
 
-      - name: 签名 APK（v1+v2+v3）
+      - name: 签名 APK
         run: |
           cd app
-          
-          APK_UNSIGNED="app-release-unsigned.apk"
-          APK_SIGNED="app-release-signed.apk"
-          
-          if [ ! -f "$APK_UNSIGNED" ]; then
-            echo "❌ 未找到未签名 APK"
-            exit 1
-          fi
-          
-          echo "=== 查找 apksigner ==="
+
           APKSIGNER=$(find $ANDROID_HOME/build-tools -name "apksigner" | head -1)
-          
-          if [ -z "$APKSIGNER" ]; then
-            echo "❌ 错误: 找不到 apksigner"
-            exit 1
-          fi
-          
-          echo "使用 apksigner: $APKSIGNER"
-          
-          echo "=== 开始签名（v1+v2+v3）==="
+          echo "使用: $APKSIGNER"
+
           $APKSIGNER sign \
             --ks release.keystore \
             --ks-key-alias "${{ secrets.KEY_ALIAS }}" \
             --ks-pass pass:"${{ secrets.KEYSTORE_PASSWORD }}" \
             --key-pass pass:"${{ secrets.KEY_PASSWORD }}" \
-            --v1-signing-enabled true \
-            --v2-signing-enabled true \
-            --v3-signing-enabled true \
-            --out "$APK_SIGNED" \
-            "$APK_UNSIGNED"
-          
-          if [ ! -f "$APK_SIGNED" ]; then
-            echo "❌ 签名失败，未生成签名 APK"
-            exit 1
-          fi
-          
-          echo "=== 验证签名 ==="
-          $APKSIGNER verify --verbose --print-certs "$APK_SIGNED" 2>&1 | tee /tmp/verify.log
-          
-          echo ""
-          echo "=== 签名方案检查 ==="
-          if grep -q "Verified using v2 scheme" /tmp/verify.log; then
-            echo "✓ v2 签名存在"
-          else
-            echo "❌ 缺少 v2 签名！无法在 Android 11+ 安装"
-            exit 1
-          fi
-          
-          if grep -q "Verified using v3 scheme" /tmp/verify.log; then
-            echo "✓ v3 签名存在"
-          else
-            echo "⚠️ 缺少 v3 签名（可选，但推荐）"
-          fi
-          
-          echo "=== APK 信息 ==="
-          ls -la "$APK_SIGNED"
-          echo "签名完成！"
+            --out app-release-signed.apk \
+            app-release-unsigned.apk
 
-      - name: 上传签名版 APK
+      - name: 验证签名
+        run: |
+          cd app
+          APKSIGNER=$(find $ANDROID_HOME/build-tools -name "apksigner" | head -1)
+          $APKSIGNER verify --verbose app-release-signed.apk
+
+      - name: 上传 APK
         uses: actions/upload-artifact@v4
         with:
-          name: 手风琴键盘-Release签名版
+          name: accordion-release
           path: app/app-release-signed.apk
-          if-no-files-found: error
 
-      - name: 创建 Release
-        uses: softprops/action-gh-release@v1
+      - name: 创建 GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
           files: app/app-release-signed.apk
           tag_name: ${{ github.ref_name }}
           body: |
-            ## 手风琴键盘 v${{ github.ref_name }}
-            
+            ## 手风琴键盘 ${{ github.ref_name }}
+
             ### 安装说明
-            1. 下载 APK 文件并解压
-            2. 在手机上允许"安装未知应用"权限
-            3. 点击 APK 文件安装
-            
+            1. 下载 APK 文件
+            2. 允许"安装未知应用"权限
+            3. 点击安装
+
             ### 系统要求
-            - Android 7.0 (API 24) 及以上，完整支持 Android 15
-            - 签名方案: v1+v2+v3，兼容所有主流设备
+            - Android 7.0+ (API 24+)
+            - 签名: apksigner 最新标准

@@ -560,6 +560,8 @@
         };
 
         let activeTouches = new Map();
+        // 跟踪每个触摸对应的 MIDI 音符(用于和弦演奏)
+        let touchToNote = new Map();
         
         // ========== 音频引擎 ==========
         let audioCtx = null;
@@ -965,6 +967,16 @@
             drawKeyboard();
         }
         
+        // 查找触摸位置对应的音符
+        function findNoteAtPosition(canvasX, canvasY) {
+            for (const key of keyPositions) {
+                if (Math.hypot(canvasX - key.x, canvasY - key.y) <= key.radius) {
+                    return key.midiNote;
+                }
+            }
+            return null;
+        }
+        
         // 处理按键按下
         function handleKeyDown(canvasX, canvasY, intensity) {
             for (const key of keyPositions) {
@@ -1018,7 +1030,12 @@
                 const { x, y } = getCanvasCoords(touch.clientX, touch.clientY);
                 let intensity = touch.force || 0.5;
                 if (intensity <= 0.1) intensity = 0.5;
-                handleKeyDown(x, y, intensity);
+                
+                const midiNote = findNoteAtPosition(x, y);
+                if (midiNote !== null) {
+                    startNote(midiNote, intensity);
+                    touchToNote.set(touch.identifier, midiNote);
+                }
                 
                 const indicator = document.createElement('div');
                 indicator.id = `touch-${touch.identifier}`;
@@ -1034,16 +1051,23 @@
         
         canvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
-            // 先停止所有当前按下的音符
-            stopAllNotes();
-            drawKeyboard();
             
             for (let i = 0; i < e.touches.length; i++) {
                 const touch = e.touches[i];
                 const { x, y } = getCanvasCoords(touch.clientX, touch.clientY);
                 let intensity = touch.force || 0.5;
                 if (intensity <= 0.1) intensity = 0.5;
-                handleKeyDown(x, y, intensity);
+                
+                const oldNote = touchToNote.get(touch.identifier);
+                const newNote = findNoteAtPosition(x, y);
+                
+                if (newNote !== null && newNote !== oldNote) {
+                    if (oldNote !== undefined) {
+                        stopNote(oldNote);
+                    }
+                    startNote(newNote, intensity);
+                    touchToNote.set(touch.identifier, newNote);
+                }
                 
                 const indicator = activeTouches.get(touch.identifier);
                 if (indicator) {
@@ -1057,26 +1081,42 @@
         
         canvas.addEventListener('touchend', (e) => {
             e.preventDefault();
-            stopAllNotes();
-            drawKeyboard();
             
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const touch = e.changedTouches[i];
                 const indicator = activeTouches.get(touch.identifier);
                 if (indicator) indicator.remove();
                 activeTouches.delete(touch.identifier);
+                
+                const midiNote = touchToNote.get(touch.identifier);
+                if (midiNote !== undefined) {
+                    stopNote(midiNote);
+                    touchToNote.delete(touch.identifier);
+                }
+            }
+            
+            if (e.touches.length === 0) {
+                drawKeyboard();
             }
         });
         
         canvas.addEventListener('touchcancel', (e) => {
             e.preventDefault();
-            stopAllNotes();
-            drawKeyboard();
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const touch = e.changedTouches[i];
                 const indicator = activeTouches.get(touch.identifier);
                 if (indicator) indicator.remove();
                 activeTouches.delete(touch.identifier);
+                
+                const midiNote = touchToNote.get(touch.identifier);
+                if (midiNote !== undefined) {
+                    stopNote(midiNote);
+                    touchToNote.delete(touch.identifier);
+                }
+            }
+            
+            if (e.touches.length === 0) {
+                drawKeyboard();
             }
         });
         
