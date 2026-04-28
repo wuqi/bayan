@@ -573,9 +573,16 @@
         let activeNotes = new Map();
         
         async function initAudio() {
-            if (audioCtx) return audioCtx;
+            if (audioCtx) {
+                if (audioCtx.state === 'suspended') {
+                    try { await audioCtx.resume(); } catch(e) {}
+                }
+                return audioCtx;
+            }
             try {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)({
+                    latencyHint: 'interactive'
+                });
                 return audioCtx;
             } catch (e) {
                 console.error("Web Audio API 不支持", e);
@@ -767,56 +774,33 @@
         }
 
         // 开始播放音符（按下时）
-        async function startNote(midiNumber, velocity = 0.65) {
-            if (!audioCtx) {
-                await initAudio();
-                if (!audioCtx) return;
-            }
+        function startNote(midiNumber, velocity = 0.65) {
+            if (!audioCtx || !isAudioReady) return;
             
-            if (audioCtx.state === 'suspended') {
-                await audioCtx.resume();
-            }
-            
-            // 如果这个音符已经在播放，先停止
             if (activeNotes.has(midiNumber)) {
                 stopNote(midiNumber);
             }
             
             const vel = Math.floor(Math.min(127, Math.max(1, velocity * 127)));
             
-            if (soundfontInstrument && isAudioReady) {
+            if (soundfontInstrument) {
                 try {
-                    const now = audioCtx.currentTime;
-                    // 检查soundfontInstrument是否有start方法
-                    if (typeof soundfontInstrument.start === 'function') {
-                        // 尝试使用smplr风格的start方法
-                        const stopFn = soundfontInstrument.start({
-                            note: midiNumber,
-                            velocity: vel,
-                            time: now
-                        });
+                    const stopFn = soundfontInstrument.start({
+                        note: midiNumber,
+                        velocity: vel,
+                        time: audioCtx.currentTime
+                    });
+                    if (stopFn) {
                         activeNotes.set(midiNumber, { stopFunction: stopFn, type: "smplr" });
-                        return;
-                    } else if (typeof soundfontInstrument.play === 'function') {
-                        // 尝试使用其他风格的play方法
-                        const stopFn = soundfontInstrument.play({
-                            note: midiNumber,
-                            velocity: vel,
-                            time: now
-                        });
-                        activeNotes.set(midiNumber, { stopFunction: stopFn, type: "other" });
-                        return;
-                    } else {
-                        console.error("soundfontInstrument没有start或play方法", soundfontInstrument);
                     }
+                    return;
                 } catch(e) {
-                    console.warn("播放出错", e, soundfontInstrument);
+                    console.warn("smplr 播放出错", e);
                 }
             }
             
             // 降级：使用振荡器
             try {
-                const now = audioCtx.currentTime;
                 const osc = audioCtx.createOscillator();
                 const gainNode = audioCtx.createGain();
                 osc.type = 'triangle';
@@ -1291,9 +1275,9 @@
         handleOrientationChange();
         
         // 激活音频
-        async function activateAudio() {
+        function activateAudio() {
             if (audioCtx && audioCtx.state === 'suspended') {
-                await audioCtx.resume();
+                audioCtx.resume();
             }
             document.removeEventListener('click', activateAudio);
             document.removeEventListener('touchstart', activateAudio);
