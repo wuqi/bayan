@@ -315,6 +315,9 @@
             width: 100%;
             height: 100%;
             touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
         }
 
         .instructions {
@@ -1075,6 +1078,11 @@
                 if (indicator) indicator.remove();
                 activeTouches.delete(touch.identifier);
             }
+        });
+        
+        // 阻止 Android 长按上下文菜单（避免 WebView 长按手势触发 touchcancel）
+        canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
         });
         
         // 悬停效果
