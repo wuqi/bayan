@@ -53,7 +53,6 @@ jobs:
         run: |
           cd app
           cordova plugin add cordova-plugin-inappbrowser
-          cordova plugin add cordova-plugin-whitelist
 
       - name: 配置 config.xml
         run: |
