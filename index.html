@@ -574,15 +574,29 @@
         
         async function initAudio() {
             if (audioCtx) {
-                if (audioCtx.state === 'suspended') {
-                    try { await audioCtx.resume(); } catch(e) {}
+                // 如果 context 已关闭或处于中断状态，重新创建
+                if (audioCtx.state === 'closed' || audioCtx.state === 'interrupted') {
+                    try { audioCtx.close(); } catch(e) {}
+                    audioCtx = null;
+                    soundfontInstrument = null;
+                    isAudioReady = false;
+                    activeNotes.clear();
+                } else {
+                    // 尝试恢复（suspended 或任何非 running 状态）
+                    if (audioCtx.state !== 'running') {
+                        try { await audioCtx.resume(); } catch(e) {}
+                    }
+                    return audioCtx;
                 }
-                return audioCtx;
             }
             try {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)({
                     latencyHint: 'interactive'
                 });
+                // 小米/ MIUI 设备上 AudioContext 可能创建后立即被挂起
+                if (audioCtx.state === 'suspended') {
+                    try { await audioCtx.resume(); } catch(e) {}
+                }
                 return audioCtx;
             } catch (e) {
                 console.error("Web Audio API 不支持", e);
@@ -776,6 +790,12 @@
         // 开始播放音符（按下时）
         function startNote(midiNumber, velocity = 0.65) {
             if (!audioCtx || !isAudioReady) return;
+
+            // 确保 AudioContext 处于运行状态（小米设备可能被系统挂起）
+            if (audioCtx.state !== 'running') {
+                audioCtx.resume().catch(() => {});
+                return;
+            }
             
             if (activeNotes.has(midiNumber)) {
                 stopNote(midiNumber);
@@ -1284,6 +1304,42 @@
         }
         document.addEventListener('click', activateAudio);
         document.addEventListener('touchstart', activateAudio);
+
+        // 处理页面从 bfcache 恢复（小米设备二次加载常见场景）
+        window.addEventListener('pageshow', (event) => {
+            if (event.persisted) {
+                // 页面从浏览器缓存恢复，AudioContext 可能已损坏
+                if (audioCtx) {
+                    if (audioCtx.state === 'closed' || audioCtx.state === 'interrupted') {
+                        audioCtx = null;
+                        soundfontInstrument = null;
+                        isAudioReady = false;
+                        activeNotes.clear();
+                        initAudio().then(() => {
+                            if (currentInstrumentType === 'builtin') {
+                                loadBuiltinInstrument(currentBuiltinInstrument);
+                            }
+                        });
+                    } else if (audioCtx.state === 'suspended') {
+                        audioCtx.resume().catch(() => {});
+                    }
+                }
+            }
+        });
+
+        // 页面可见性变化时恢复音频（小米系统可能挂起后台音频）
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && audioCtx) {
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume().catch(() => {});
+                } else if (audioCtx.state === 'closed' || audioCtx.state === 'interrupted') {
+                    audioCtx = null;
+                    soundfontInstrument = null;
+                    isAudioReady = false;
+                    activeNotes.clear();
+                }
+            }
+        });
 
     </script>
 </body>
