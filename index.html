@@ -572,7 +572,7 @@
             "Rock Organ": "摇滚风琴", "Pipe Organ": "管风琴",
             "Pipe Organ 2": "管风琴 2", "Church Bells": "教堂钟声",
             "Reed Organ": "簧风琴", "Harmonica": "口琴",
-            "Bandoneon": "班多钮琴", "Italian Accordian": "意大利手风琴",
+            "Bandoneon": "班多钮琴", "Accordian": "手风琴", "Italian Accordian": "意大利手风琴",
             // 吉他
             "Nylon Guitar": "古典吉他", "Ukulele": "尤克里里",
             "Steel Guitar": "钢弦吉他", "12-String Guitar": "12弦吉他",
@@ -848,7 +848,7 @@
                     console.log("SF2 可用乐器:", sampler.instrumentNames);
 
                     // 默认加载钢琴
-                    const defaultInstrument = sampler.instrumentNames.find(n => n === "PIANO 1") || sampler.instrumentNames[0];
+                    const defaultInstrument = sampler.instrumentNames.find(n => n === "Stereo Grand") || sampler.instrumentNames.find(n => n === "PIANO 1") || sampler.instrumentNames[0];
                     statusSpan.textContent = `加载乐器: ${(sf2NameMap[defaultInstrument] || defaultInstrument)}...`;
                     await sampler.loadInstrument(defaultInstrument);
 
