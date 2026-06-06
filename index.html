@@ -683,12 +683,12 @@
                 // 获取可用的乐器列表
                 if (sampler.instrumentNames && sampler.instrumentNames.length > 0) {
                     console.log("SF2 可用乐器:", sampler.instrumentNames);
-                    
+
                     // 默认加载第一个乐器
                     const defaultInstrument = sampler.instrumentNames[0];
                     statusSpan.textContent = `加载乐器: ${defaultInstrument.substring(0, 20)}...`;
                     await sampler.loadInstrument(defaultInstrument);
-                    
+
                     stopAllNotes();
                     if (soundfontInstrument) {
                         try { soundfontInstrument.stop(); } catch(e) {}
@@ -698,7 +698,18 @@
                     isAudioReady = true;
                     currentInstrumentType = "sf2";
                     currentSF2Url = url;
-                    
+
+                    // 用SF2里的乐器列表替换下拉菜单
+                    const select = document.getElementById('instrument-select');
+                    select.innerHTML = '';
+                    sampler.instrumentNames.forEach((name, i) => {
+                        const opt = document.createElement('option');
+                        opt.value = name;
+                        opt.textContent = name;
+                        if (i === 0) opt.selected = true;
+                        select.appendChild(opt);
+                    });
+
                     statusSpan.textContent = `✓ SF2加载成功`;
                     statusSpan.style.color = "#4caf50";
                     setTimeout(() => {
@@ -764,6 +775,17 @@
                     isAudioReady = true;
                     currentInstrumentType = "sf2";
                     currentSF2Url = file.name;
+
+                    // 用SF2里的乐器列表替换下拉菜单
+                    const select = document.getElementById('instrument-select');
+                    select.innerHTML = '';
+                    sampler.instrumentNames.forEach((name, i) => {
+                        const opt = document.createElement('option');
+                        opt.value = name;
+                        opt.textContent = name;
+                        if (i === 0) opt.selected = true;
+                        select.appendChild(opt);
+                    });
 
                     statusSpan.textContent = `✓ ${file.name} 加载成功`;
                     statusSpan.style.color = "#4caf50";
@@ -1170,7 +1192,25 @@
         
         document.getElementById('instrument-select').addEventListener('change', async (e) => {
             stopAllNotes();
-            await loadBuiltinInstrument(e.target.value);
+            if (sf2Sampler && currentInstrumentType === "sf2") {
+                // 从已加载的SF2中切换乐器（无需网络请求）
+                const name = e.target.value;
+                const statusSpan = document.getElementById('sf2-status');
+                try {
+                    await sf2Sampler.loadInstrument(name);
+                    soundfontInstrument = sf2Sampler;
+                    isAudioReady = true;
+                    if (statusSpan) {
+                        statusSpan.textContent = `✓ ${name}`;
+                        statusSpan.style.color = "#4caf50";
+                        setTimeout(() => { statusSpan.textContent = ""; }, 1500);
+                    }
+                } catch (err) {
+                    console.error("切换乐器失败:", err);
+                }
+            } else {
+                await loadBuiltinInstrument(e.target.value);
+            }
         });
         
         document.getElementById('load-sf2').addEventListener('click', async () => {
@@ -1238,7 +1278,7 @@
             resizeCanvas();
             updateControlPanel();
             await initAudio();
-            await loadBuiltinInstrument("accordion");
+            await loadSF2Instrument("./8bitsf.SF2");
             document.getElementById('instrument-select').value = "accordion";
 
             // 绑定侧边栏切换事件
@@ -1313,10 +1353,13 @@
                     if (audioCtx.state === 'closed' || audioCtx.state === 'interrupted') {
                         audioCtx = null;
                         soundfontInstrument = null;
+                        sf2Sampler = null;
                         isAudioReady = false;
                         activeNotes.clear();
                         initAudio().then(() => {
-                            if (currentInstrumentType === 'builtin') {
+                            if (currentInstrumentType === 'sf2') {
+                                loadSF2Instrument(currentSF2Url || "./8bitsf.SF2");
+                            } else if (currentInstrumentType === 'builtin') {
                                 loadBuiltinInstrument(currentBuiltinInstrument);
                             }
                         });
