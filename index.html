@@ -487,7 +487,7 @@
 
                     <div class="control-group sf2-controls">
                         <span>SF2文件:</span>
-                        <input type="text" id="sf2-url" class="sf2-url-input" placeholder="输入SF2文件URL" value="./8bitsf.SF2">
+                        <input type="text" id="sf2-url" class="sf2-url-input" placeholder="输入SF2文件URL" value="./GeneralUser.sf2">
                         <button id="load-sf2" class="load-sf2-btn">加载URL</button>
                         <span id="sf2-status" class="status-text"></span>
                     </div>
@@ -546,6 +546,169 @@
         // SF2 相关
         let sf2Sampler = null;
         let currentSF2Url = "";
+
+        // SF2乐器名中文映射 (GeneralUser GS)
+        const sf2NameMap = {
+            // 钢琴
+            "Stereo Grand": "立体声三角钢琴", "Bright Grand": "明亮三角钢琴",
+            "Electric Grand": "电子三角钢琴", "Honky-Tonk": "酒吧钢琴",
+            "Tine Electric Piano": "簧片电钢琴", "FM Electric Piano": "FM电钢琴",
+            "Bell Piano": "钟琴钢琴", "Bell Tine EP": "钟音电钢琴",
+            "Chorused Tine EP": "合唱簧片电钢琴", "Chorused FM EP": "合唱FM电钢琴",
+            "Piano & Str.-Fade": "钢琴与弦乐渐弱", "Piano & Str.-Sus": "钢琴与弦乐延音",
+            "Piano & FM EP": "钢琴与FM电钢琴",
+            // 键盘
+            "Harpsichord": "大键琴", "Coupled Harpsichord": "耦合大键琴",
+            "Clavinet": "克拉维奈琴", "Celeste": "天琴",
+            "Glockenspiel": "钟琴", "Music Box": "八音盒",
+            "Christmas Bells": "圣诞铃声", "Tinkling Bells": "叮当铃",
+            "Carillon": "钟楼钟", "Bell Tower": "钟塔",
+            "Vibraphone": "颤音琴", "Marimba": "马林巴",
+            "Xylophone": "木琴", "Tubular Bells": "管钟",
+            "Dulcimer": "扬琴", "Kalimba": "卡林巴",
+            // 风琴
+            "Tonewheel Organ": "音轮风琴", "Detuned Tnwl. Organ": "失谐音轮风琴",
+            "Percussive Organ": "打击风琴", "Detuned Perc. Organ": "失谐打击风琴",
+            "Rock Organ": "摇滚风琴", "Pipe Organ": "管风琴",
+            "Pipe Organ 2": "管风琴 2", "Church Bells": "教堂钟声",
+            "Reed Organ": "簧风琴", "Harmonica": "口琴",
+            "Bandoneon": "班多钮琴", "Italian Accordian": "意大利手风琴",
+            // 吉他
+            "Nylon Guitar": "古典吉他", "Ukulele": "尤克里里",
+            "Steel Guitar": "钢弦吉他", "12-String Guitar": "12弦吉他",
+            "Mandolin": "曼陀林",
+            "Jazz Guitar": "爵士吉他", "Hawaiian Guitar": "夏威夷吉他",
+            "Clean Guitar": "清音吉他", "Chorused Clean Gt.": "合唱清音吉他",
+            "Clean Guitar 2": "清音吉他 2",
+            "Muted Guitar": "闷音吉他", "Funk Guitar": "放克吉他",
+            "Overdrive Guitar": "过载吉他", "Distortion Guitar": "失真吉他",
+            "Feedback Guitar": "反馈吉他", "Guitar Harmonics": "吉他泛音",
+            "Guitar Feedback": "吉他反馈",
+            // 贝斯
+            "Acoustic Bass": "原声贝斯", "Finger Bass": "指弹贝斯",
+            "Pick Bass": "拨片贝斯", "Fretless Bass": "无品贝斯",
+            "Slap Bass 1": "击弦贝斯 1", "Slap Bass 2": "击弦贝斯 2",
+            "Synth Bass 1": "合成贝斯 1", "Synth Bass 2": "合成贝斯 2",
+            "Synth Bass 3": "合成贝斯 3", "Synth Bass 4": "合成贝斯 4",
+            "Synth Bass 101": "合成贝斯 101", "Mean Saw Bass": "粗犷锯齿贝斯",
+            "Pulse Bass": "脉冲贝斯", "Techno Bass": "科技贝斯",
+            // 弦乐
+            "Violin": "小提琴", "Viola": "中提琴",
+            "Cello": "大提琴", "Double Bass": "低音提琴",
+            "Pizzicato Strings": "拨弦弦乐", "Orchestral Harp": "管弦竖琴",
+            "Timpani": "定音鼓",
+            "Stereo Strings Fast": "立体声弦乐快弓", "Stereo Strings Slow": "立体声弦乐慢弓",
+            "Stereo Strings Trem": "立体声弦乐震音",
+            "Mono Strings Fast": "单声道弦乐快弓", "Mono Strings Slow": "单声道弦乐慢弓",
+            "Mono Strings Trem": "单声道弦乐震音", "Mono Strings Velo": "单声道弦乐力度",
+            "Synth Strings 1": "合成弦乐 1", "Synth Strings 2": "合成弦乐 2",
+            "Synth Strings 3": "合成弦乐 3", "Synth Strings 4": "合成弦乐 4",
+            "Synth Strings 5": "合成弦乐 5",
+            // 合唱/人声
+            "Concert Choir": "音乐会合唱", "Concert Choir Mono": "音乐会合唱(单声道)",
+            "Voice Oohs": "人声呜音", "Synth Voice": "合成人声",
+            "Solo Vox": "独唱", "Space Voice": "太空人声",
+            "Woodwind Choir": "木管合唱",
+            // 管弦
+            "Orchestra Hit": "管弦齐奏", "Full Orchestra": "完整管弦乐",
+            "Orchestra Pad": "管弦乐垫",
+            // 铜管
+            "Trumpet": "小号", "Trumpet 2": "小号 2",
+            "Muted Trumpet": "弱音小号", "Muted Trumpet 2": "弱音小号 2",
+            "Trombone": "长号", "Trombone 2": "长号 2",
+            "Tuba": "大号", "French Horns": "圆号",
+            "Solo French Horn": "独奏圆号",
+            "Brass Section": "铜管组", "Brass Section 2": "铜管组 2",
+            "Brass Section 3": "铜管组 3", "Brass Section Mono": "铜管组(单声道)",
+            "Synth Brass 1": "合成铜管 1", "Synth Brass 2": "合成铜管 2",
+            "Synth Brass 3": "合成铜管 3", "Synth Brass 4": "合成铜管 4",
+            // 萨克斯
+            "Soprano Sax": "高音萨克斯", "Alto Sax": "中音萨克斯",
+            "Tenor Sax": "次中音萨克斯", "Baritone Sax": "上低音萨克斯",
+            // 木管
+            "Oboe": "双簧管", "English Horn": "英国管",
+            "Bassoon": "大管", "Clarinet": "单簧管",
+            "Piccolo": "短笛", "Flute": "长笛",
+            "Recorder": "竖笛", "Pan Flute": "排箫",
+            "Bottle Blow": "瓶吹", "Shakuhachi": "尺八",
+            "Irish Tin Whistle": "爱尔兰锡哨", "Ocarina": "陶笛",
+            "Whistlin'": "口哨",
+            // 合成主音
+            "Square Lead": "方波主音", "Square Wave": "方波", "Sine Wave": "正弦波",
+            "Square Lead 2": "方波主音 2", "Square Lead 3": "方波主音 3",
+            "Saw Lead": "锯齿主音", "Saw Lead 2": "锯齿主音 2", "Saw Lead 3": "锯齿主音 3",
+            "Sawtooth Stab": "锯齿短音", "Saw Wave": "锯齿波", "Square Wave": "方波",
+            "Synth Calliope": "合成汽笛风琴", "Chiffer Lead": "哨管主音",
+            "Charang": "沙朗主音", "Doctor Solo": "博士独奏",
+            "Doctor's Solo": "博士独奏", "5th Saw Wave": "五度锯齿波",
+            "Bass & Lead": "贝斯与主音",
+            // 合成音色垫
+            "Fantasia": "幻想曲", "Fantasia 2": "幻想曲 2",
+            "Warm Pad": "温暖音色垫", "Solar Wind": "太阳风", "Solar Wind 2": "太阳风 2",
+            "Polysynth": "复音合成", "Space Voice": "太空人声",
+            "Bowed Glass": "弓弦玻璃", "Metal Pad": "金属音色垫",
+            "Halo Pad": "光环音色垫", "Sweep Pad": "扫掠音色垫",
+            "Ice Rain": "冰雨", "Soundtrack": "电影原声",
+            "Crystal": "水晶", "Atmosphere": "氛围",
+            "Brightness": "明亮", "Goblin": "哥布林",
+            "Echo Drops": "回声水滴", "Star Theme": "星空主题",
+            "Shooting Star": "流星", "Night Vision": "夜视",
+            "Harpsi Pad": "大键琴垫", "Mystery Pad": "神秘垫",
+            "Cymbal Crash": "铙钹碰撞",
+            // 合成特效
+            "Synth Chime": "合成风铃", "Synth Mallet": "合成槌音",
+            "Interference": "干扰",
+            // 民族乐器
+            "Sitar": "西塔琴", "Banjo": "班卓琴",
+            "Shamisen": "三味线", "Taisho Koto": "大正琴",
+            "Koto": "古筝", "Kalimba": "卡林巴",
+            "Bagpipes": "风笛", "Fiddle": "提琴",
+            "Shenai": "唢呐", "Tinker Bell": "叮当铃",
+            "Agogo": "阿戈戈鼓", "Steel Drums": "钢鼓",
+            "Wood Block": "木鱼",
+            // 鼓/打击乐
+            "Taiko Drum": "太鼓", "Concert Bass Drum": "音乐会大鼓",
+            "Melodic Tom": "嗵鼓", "Melodic Tom 2": "嗵鼓 2",
+            "808 Tom": "808嗵鼓", "Synth Drum": "合成鼓",
+            "Reverse Cymbal": "反向镲", "Tambourine": "铃鼓",
+            "Castanets": "响板",
+            "Fret Noise": "品丝噪音", "Breath Noise": "呼吸噪音",
+            "Fl. Key Click": "长笛按键声", "String Slap": "弦乐击弦",
+            "Cut Noise": "切割噪音", "Filter Snap": "滤波器啪声",
+            // 环境音效
+            "Seashore": "海浪", "Birds": "鸟鸣", "Bird 2": "鸟鸣 2",
+            "Telephone 1": "电话 1", "Telephone 2": "电话 2",
+            "Helicopter": "直升机", "Jet Plane": "喷气飞机",
+            "Train": "火车", "Car-Engine": "汽车引擎",
+            "Car-Stop": "汽车停车", "Car-Pass": "汽车驶过",
+            "Car-Crash": "车祸", "Siren": "警笛",
+            "Heart Beat": "心跳", "Footsteps": "脚步",
+            "Bubbles": "气泡", "Windchime": "风铃",
+            "Thunder": "雷声", "Rain": "雨声",
+            "Howling Winds": "呼啸风声", "White Noise Wave": "白噪声",
+            "Stream": "溪流",
+            "Door": "门", "Door Creaking": "吱吱门声",
+            "Horse Gallop": "马蹄声", "Dog": "狗叫",
+            "Laughing": "笑声", "Scream": "尖叫",
+            "Punch": "击打", "Explosion": "爆炸",
+            "Machine Gun": "机关枪", "Lasergun": "激光枪",
+            "Starship": "星际飞船", "Burst Noise": "爆裂噪音",
+            "Applause": "掌声", "Gun Shot": "枪声",
+            "Scratch": "刮擦",
+            // 鼓组
+            "Standard Drums": "标准鼓组", "Standard 2 Drums": "标准鼓组 2",
+            "Room Drums": "房间鼓组", "Power Drums": "强力鼓组",
+            "Electronic Drums": "电子鼓组", "808/909 Drums": "808/909鼓组",
+            "Dance Drums": "舞曲鼓组", "Jazz Drums": "爵士鼓组",
+            "Brush Drums": "鼓刷鼓组", "Orchestral Perc.": "管弦打击乐",
+            "SFX Kit": "音效套件",
+            "Standard": "标准", "Standard 2": "标准 2",
+            "Room": "房间", "Power": "强力",
+            "Electronic": "电子", "808/909": "808/909",
+            "Dance": "舞曲", "Jazz": "爵士",
+            "Brush": "鼓刷", "Orchestral": "管弦",
+            "SFX": "音效"
+        };
         
         // MIDI音高到音符名称的映射
         const midiToNote = {
@@ -684,9 +847,9 @@
                 if (sampler.instrumentNames && sampler.instrumentNames.length > 0) {
                     console.log("SF2 可用乐器:", sampler.instrumentNames);
 
-                    // 默认加载第一个乐器
-                    const defaultInstrument = sampler.instrumentNames[0];
-                    statusSpan.textContent = `加载乐器: ${defaultInstrument.substring(0, 20)}...`;
+                    // 默认加载钢琴
+                    const defaultInstrument = sampler.instrumentNames.find(n => n === "PIANO 1") || sampler.instrumentNames[0];
+                    statusSpan.textContent = `加载乐器: ${(sf2NameMap[defaultInstrument] || defaultInstrument)}...`;
                     await sampler.loadInstrument(defaultInstrument);
 
                     stopAllNotes();
@@ -702,11 +865,11 @@
                     // 用SF2里的乐器列表替换下拉菜单
                     const select = document.getElementById('instrument-select');
                     select.innerHTML = '';
-                    sampler.instrumentNames.forEach((name, i) => {
+                    sampler.instrumentNames.forEach((name) => {
                         const opt = document.createElement('option');
                         opt.value = name;
-                        opt.textContent = name;
-                        if (i === 0) opt.selected = true;
+                        opt.textContent = sf2NameMap[name] || name;
+                        if (name === defaultInstrument) opt.selected = true;
                         select.appendChild(opt);
                     });
 
@@ -779,11 +942,10 @@
                     // 用SF2里的乐器列表替换下拉菜单
                     const select = document.getElementById('instrument-select');
                     select.innerHTML = '';
-                    sampler.instrumentNames.forEach((name, i) => {
+                    sampler.instrumentNames.forEach((name) => {
                         const opt = document.createElement('option');
                         opt.value = name;
-                        opt.textContent = name;
-                        if (i === 0) opt.selected = true;
+                        opt.textContent = sf2NameMap[name] || name;
                         select.appendChild(opt);
                     });
 
@@ -1278,8 +1440,7 @@
             resizeCanvas();
             updateControlPanel();
             await initAudio();
-            await loadSF2Instrument("./8bitsf.SF2");
-            document.getElementById('instrument-select').value = "accordion";
+            await loadSF2Instrument("./GeneralUser.sf2");
 
             // 绑定侧边栏切换事件
             const toggleBtn = document.getElementById('sidebar-toggle-btn');
@@ -1358,7 +1519,7 @@
                         activeNotes.clear();
                         initAudio().then(() => {
                             if (currentInstrumentType === 'sf2') {
-                                loadSF2Instrument(currentSF2Url || "./8bitsf.SF2");
+                                loadSF2Instrument(currentSF2Url || "./GeneralUser.sf2");
                             } else if (currentInstrumentType === 'builtin') {
                                 loadBuiltinInstrument(currentBuiltinInstrument);
                             }
