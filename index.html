@@ -831,18 +831,40 @@
             if (!audioCtx) return false;
             
             const statusSpan = document.getElementById('sf2-status');
-            statusSpan.textContent = `下载SF2...`;
+            statusSpan.textContent = `读取SF2文件...`;
             statusSpan.style.color = "#666";
-            
+
             try {
-                // 创建 Soundfont2Sampler
-                const sampler = new Soundfont2Sampler(audioCtx, {
-                    url: url,
-                    createSoundfont: (data) => new SoundFont2(data)
+                // 用 XHR 加载（Cordova WebView 中 fetch 对本地大文件支持差）
+                const rawData = await new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('GET', url, true);
+                    xhr.responseType = 'arraybuffer';
+                    xhr.onload = () => {
+                        if (xhr.status === 200 || xhr.status === 0) resolve(new Uint8Array(xhr.response));
+                        else reject(new Error('XHR status ' + xhr.status));
+                    };
+                    xhr.onerror = () => reject(new Error('XHR failed'));
+                    xhr.ontimeout = () => reject(new Error('XHR timeout'));
+                    xhr.timeout = 60000;
+                    xhr.send();
                 });
-                
-                statusSpan.textContent = `解析SF2...`;
+
+                statusSpan.textContent = `解析SF2 (${Math.round(rawData.length / 1024 / 1024)}MB)...`;
+
+                // 直接用数据创建 SoundFont2 对象
+                const sf2 = new SoundFont2(rawData);
+
+                // 用 blob URL 创建 sampler（绕过 fetch）
+                const blob = new Blob([rawData.buffer], { type: 'application/octet-stream' });
+                const blobUrl = URL.createObjectURL(blob);
+                const sampler = new Soundfont2Sampler(audioCtx, {
+                    url: blobUrl,
+                    createSoundfont: () => sf2
+                });
+
                 await sampler.load;
+                URL.revokeObjectURL(blobUrl);
                 
                 // 获取可用的乐器列表
                 if (sampler.instrumentNames && sampler.instrumentNames.length > 0) {
@@ -895,7 +917,7 @@
                 }
             } catch (err) {
                 console.error("加载SF2失败:", err);
-                statusSpan.textContent = `SF2加载失败`;
+                statusSpan.textContent = `SF2加载失败: ${err.message}`;
                 statusSpan.style.color = "#f44336";
                 isAudioReady = false;
                 return false;
@@ -1456,7 +1478,12 @@
             resizeCanvas();
             updateControlPanel();
             await initAudio();
-            await loadSF2Instrument("./GeneralUser.sf2");
+            const sf2Loaded = await loadSF2Instrument("./GeneralUser.sf2");
+            if (!sf2Loaded) {
+                // SF2 加载失败，回退到内置音色
+                console.warn("SF2加载失败，使用内置音色");
+                await loadBuiltinInstrument("accordion");
+            }
 
             // 绑定侧边栏切换事件
             const toggleBtn = document.getElementById('sidebar-toggle-btn');
