@@ -546,6 +546,7 @@
         // SF2 相关
         let sf2Sampler = null;
         let currentSF2Url = "";
+        let instNameMap = {};
 
         // SF2乐器名中文映射 (GeneralUser GS)
         const sf2NameMap = {
@@ -847,9 +848,17 @@
                 if (sampler.instrumentNames && sampler.instrumentNames.length > 0) {
                     console.log("SF2 可用乐器:", sampler.instrumentNames);
 
+                    // 构建inst名到中文名的映射（inst chunk名带后缀如 "Harpsichord_28va"）
+                    instNameMap = {};
+                    sampler.instrumentNames.forEach(name => {
+                        // 去掉常见后缀: _1, _2, _F, _M, _P, _28va, _offset 等
+                        const base = name.replace(/_(\d+[a-z]*|[FMPS]|offset|new|Pan|Sus|Rel|Att|Loop).*$/i, '').trim();
+                        instNameMap[name] = sf2NameMap[base] || sf2NameMap[name] || base;
+                    });
+
                     // 默认加载钢琴
-                    const defaultInstrument = sampler.instrumentNames.find(n => n === "Stereo Grand") || sampler.instrumentNames.find(n => n === "PIANO 1") || sampler.instrumentNames[0];
-                    statusSpan.textContent = `加载乐器: ${(sf2NameMap[defaultInstrument] || defaultInstrument)}...`;
+                    const defaultInstrument = sampler.instrumentNames.find(n => n === "Stereo Grand") || sampler.instrumentNames.find(n => n.startsWith("Stereo Grand")) || sampler.instrumentNames.find(n => /grand.*piano|piano/i.test(n) && !/electric/i.test(n)) || sampler.instrumentNames[0];
+                    statusSpan.textContent = `加载乐器: ${(instNameMap[defaultInstrument] || defaultInstrument)}...`;
                     await sampler.loadInstrument(defaultInstrument);
 
                     stopAllNotes();
@@ -868,7 +877,7 @@
                     sampler.instrumentNames.forEach((name) => {
                         const opt = document.createElement('option');
                         opt.value = name;
-                        opt.textContent = sf2NameMap[name] || name;
+                        opt.textContent = instNameMap[name] || name;
                         if (name === defaultInstrument) opt.selected = true;
                         select.appendChild(opt);
                     });
@@ -924,9 +933,16 @@
                 if (sampler.instrumentNames && sampler.instrumentNames.length > 0) {
                     console.log("SF2 可用乐器:", sampler.instrumentNames);
 
+                    // 构建inst名到中文名的映射
+                    instNameMap = {};
+                    sampler.instrumentNames.forEach(name => {
+                        const base = name.replace(/_(\d+[a-z]*|[FMPS]|offset|new|Pan|Sus|Rel|Att|Loop).*$/i, '').trim();
+                        instNameMap[name] = sf2NameMap[base] || sf2NameMap[name] || base;
+                    });
+
                     // 默认加载第一个乐器
-                    const defaultInstrument = sampler.instrumentNames[0];
-                    statusSpan.textContent = `加载乐器: ${defaultInstrument.substring(0, 20)}...`;
+                    const defaultInstrument = sampler.instrumentNames.find(n => /grand.*piano|piano/i.test(n) && !/electric/i.test(n)) || sampler.instrumentNames[0];
+                    statusSpan.textContent = `加载乐器: ${instNameMap[defaultInstrument] || defaultInstrument}...`;
                     await sampler.loadInstrument(defaultInstrument);
 
                     stopAllNotes();
@@ -945,7 +961,7 @@
                     sampler.instrumentNames.forEach((name) => {
                         const opt = document.createElement('option');
                         opt.value = name;
-                        opt.textContent = sf2NameMap[name] || name;
+                        opt.textContent = instNameMap[name] || name;
                         select.appendChild(opt);
                     });
 
@@ -1363,7 +1379,7 @@
                     soundfontInstrument = sf2Sampler;
                     isAudioReady = true;
                     if (statusSpan) {
-                        statusSpan.textContent = `✓ ${name}`;
+                        statusSpan.textContent = `✓ ${instNameMap[name] || name}`;
                         statusSpan.style.color = "#4caf50";
                         setTimeout(() => { statusSpan.textContent = ""; }, 1500);
                     }

@@ -3337,8 +3337,8 @@ var Soundfont2Sampler = class {
     }));
     this.load = loadSoundfont(options).then((sf2) => {
       this.soundfont = sf2;
-      __privateSet(this, _instrumentNames, sf2.presets.map(
-        (preset) => preset.header.name
+      __privateSet(this, _instrumentNames, sf2.instruments.map(
+        (inst) => inst.header.name
       ));
     }).then(() => this);
   }
@@ -3350,20 +3350,11 @@ var Soundfont2Sampler = class {
   }
   loadInstrument(instrumentName) {
     var _a;
-    const preset = (_a = this.soundfont) == null ? void 0 : _a.presets.find(
-      (p) => p.header.name === instrumentName
+    const sf2inst = (_a = this.soundfont) == null ? void 0 : _a.instruments.find(
+      (inst) => inst.header.name === instrumentName
     );
-    if (!preset) return void 0;
-    const buffers = /* @__PURE__ */ new Map();
-    const regions = [];
-    for (const zone of preset.zones) {
-      const sf2inst = zone.instrument;
-      if (!sf2inst) continue;
-      const { json: instJson, buffers: instBuffers } = sf2InstrumentToSmplrJson(sf2inst, this.context);
-      for (const [k, v] of instBuffers) buffers.set(k, v);
-      regions.push(...instJson.groups[0].regions);
-    }
-    const json = { samples: { baseUrl: "", formats: [] }, groups: [{ regions }] };
+    if (!sf2inst) return void 0;
+    const { json, buffers } = sf2InstrumentToSmplrJson(sf2inst, this.context);
     return __privateGet(this, _smplr8).loadInstrument(json, buffers);
   }
   start(sample) {
