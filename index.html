@@ -866,14 +866,15 @@
                 await sampler.load;
                 URL.revokeObjectURL(blobUrl);
                 
-                // 获取 presets（用户友好的预设名）并映射到 instruments（实际加载）
-                const presets = sampler.soundfont.presets;
-                if (presets && presets.length > 0) {
-                    console.log("SF2 预设数:", presets.length);
+                // 只用 bank 0 的旋律乐器（去掉鼓组 bank 120/128 和音效）
+                const allPresets = sampler.soundfont.presets || [];
+                const melodicPresets = allPresets.filter(p => p.header.bank === 0);
+                if (melodicPresets.length > 0) {
+                    console.log("SF2 旋律乐器:", melodicPresets.length);
 
                     // 构建 preset名 → inst名 的映射（用于加载）
                     const presetToInst = {};
-                    presets.forEach(p => {
+                    melodicPresets.forEach(p => {
                         for (const zone of p.zones) {
                             if (zone.instrument && zone.instrument.header.name) {
                                 presetToInst[p.header.name] = zone.instrument.header.name;
@@ -882,25 +883,17 @@
                         }
                     });
 
-                    // 构建显示名：统计重复以加后缀
+                    // 构建显示名
                     instNameMap = {};
-                    const countMap = {};
-                    presets.forEach(p => {
-                        const cn = sf2NameMap[p.header.name] || p.header.name;
-                        countMap[cn] = (countMap[cn] || 0) + 1;
-                    });
-                    presets.forEach(p => {
-                        const cn = sf2NameMap[p.header.name] || p.header.name;
-                        instNameMap[p.header.name] = countMap[cn] > 1 && p.header.bank > 0
-                            ? cn + ' [' + p.header.bank + ':' + p.header.preset + ']'
-                            : cn;
+                    melodicPresets.forEach(p => {
+                        instNameMap[p.header.name] = sf2NameMap[p.header.name] || p.header.name;
                     });
 
                     // 默认加载钢琴
-                    const defaultPreset = presets.find(p => p.header.name === "Stereo Grand") || presets.find(p => /Grand|Piano/i.test(p.header.name) && !/electric/i.test(p.header.name) && p.header.bank === 0) || presets[0];
-                    const defaultInstName = presetToInst[defaultPreset.header.name] || sampler.instrumentNames[0];
+                    const defaultPreset = melodicPresets.find(p => p.header.name === "Stereo Grand") || melodicPresets.find(p => /Grand|Piano/i.test(p.header.name)) || melodicPresets[0];
+                    const defaultInst = presetToInst[defaultPreset.header.name] || sampler.instrumentNames[0];
                     statusSpan.textContent = `加载乐器: ${(instNameMap[defaultPreset.header.name] || defaultPreset.header.name)}...`;
-                    await sampler.loadInstrument(defaultInstName);
+                    await sampler.loadInstrument(defaultInst);
 
                     stopAllNotes();
                     if (soundfontInstrument) {
@@ -912,13 +905,13 @@
                     currentInstrumentType = "sf2";
                     currentSF2Url = url;
 
-                    // 用 preset 名填充下拉菜单
+                    // 填充下拉菜单
                     const select = document.getElementById('instrument-select');
                     select.innerHTML = '';
-                    presets.forEach(p => {
+                    melodicPresets.forEach(p => {
                         const opt = document.createElement('option');
-                        opt.value = p.header.name;        // value = preset名
-                        opt.dataset.inst = presetToInst[p.header.name] || '';  // 对应的 inst名
+                        opt.value = p.header.name;
+                        opt.dataset.inst = presetToInst[p.header.name] || '';
                         opt.textContent = instNameMap[p.header.name] || p.header.name;
                         if (p.header.name === defaultPreset.header.name) opt.selected = true;
                         select.appendChild(opt);
@@ -971,10 +964,10 @@
                 // 清理对象 URL
                 URL.revokeObjectURL(objectUrl);
 
-                // 获取 presets 并映射到 instruments
-                const presets = sampler.soundfont.presets;
-                if (presets && presets.length > 0) {
-                    console.log("SF2 预设数:", presets.length);
+                // 只用 bank 0 的旋律乐器（去掉鼓组）
+                const presets = (sampler.soundfont.presets || []).filter(p => p.header.bank === 0);
+                if (presets.length > 0) {
+                    console.log("SF2 旋律乐器:", presets.length);
 
                     const presetToInst = {};
                     presets.forEach(p => {
@@ -987,22 +980,14 @@
                     });
 
                     instNameMap = {};
-                    const countMap = {};
                     presets.forEach(p => {
-                        const cn = sf2NameMap[p.header.name] || p.header.name;
-                        countMap[cn] = (countMap[cn] || 0) + 1;
-                    });
-                    presets.forEach(p => {
-                        const cn = sf2NameMap[p.header.name] || p.header.name;
-                        instNameMap[p.header.name] = countMap[cn] > 1 && p.header.bank > 0
-                            ? cn + ' [' + p.header.bank + ':' + p.header.preset + ']'
-                            : cn;
+                        instNameMap[p.header.name] = sf2NameMap[p.header.name] || p.header.name;
                     });
 
-                    const defaultPreset = presets.find(p => p.header.name === "Stereo Grand") || presets.find(p => /Grand|Piano/i.test(p.header.name) && !/electric/i.test(p.header.name) && p.header.bank === 0) || presets[0];
-                    const defaultInstName = presetToInst[defaultPreset.header.name] || sampler.instrumentNames[0];
+                    const defaultPreset = presets.find(p => p.header.name === "Stereo Grand") || presets.find(p => /Grand|Piano/i.test(p.header.name)) || presets[0];
+                    const defaultInst = presetToInst[defaultPreset.header.name] || sampler.instrumentNames[0];
                     statusSpan.textContent = `加载乐器: ${instNameMap[defaultPreset.header.name] || defaultPreset.header.name}...`;
-                    await sampler.loadInstrument(defaultInstName);
+                    await sampler.loadInstrument(defaultInst);
 
                     stopAllNotes();
                     if (soundfontInstrument) {
@@ -1431,7 +1416,7 @@
         document.getElementById('instrument-select').addEventListener('change', async (e) => {
             stopAllNotes();
             if (sf2Sampler && currentInstrumentType === "sf2") {
-                // 从已加载的SF2中切换乐器：preset名 → inst名
+                // 从 SF2 切换乐器（preset名 → inst名）
                 const presetName = e.target.value;
                 const instName = e.target.selectedOptions[0].dataset.inst || presetName;
                 const statusSpan = document.getElementById('sf2-status');
