@@ -1152,7 +1152,7 @@
             const ROW_OFFSET = 0.55;
 
             // 键盘中心点总宽度和高度（键中心到中心距离）
-            const centerWidth = (cols - 1) * H_SPACING + (rows - 1) * ROW_OFFSET;
+            const centerWidth = cols * H_SPACING + (rows - 1) * ROW_OFFSET;
             const centerHeight = (rows - 1) * V_SPACING;
 
             // 键盘实际占用尺寸（包括键半径）
@@ -1171,43 +1171,49 @@
             const startX = (canvas.width - centerWidth * scale) / 2;
             const startY = (canvas.height - centerHeight * scale) / 2;
             const startMidi = value1Options[currentIndex];
-            
+
+            const drawKey = (row, col, keyType) => {
+                const x = startX + col * keyDiameter * H_SPACING + row * keyDiameter * ROW_OFFSET;
+                const y = startY + row * keyDiameter * V_SPACING;
+                const midiNote = startMidi + row + col * 3;
+
+                keyPositions.push({
+                    x, y, radius: keyDiameter / 2, row, col,
+                    type: keyType, midiNote: midiNote
+                });
+
+                const isBlack = keyType === 1;
+                const fillColor = isBlack ? '#333' : '#fff';
+                const strokeColor = isBlack ? '#000' : '#888';
+                const seed = (row + 1) * 10 + (col + 1);
+
+                roughCanvas.circle(x, y, keyDiameter, {
+                    fill: fillColor, fillStyle: 'solid', stroke: strokeColor,
+                    strokeWidth: 1.5, roughness: 1.2, bowing: 0.3, seed: seed
+                });
+
+                roughCanvas.circle(x + 2, y + 2, keyDiameter - 4, {
+                    fill: isBlack ? '#222' : '#e8e8e8', fillStyle: 'solid',
+                    stroke: 'none', roughness: 0.8, bowing: 0.2, seed: seed + 100
+                });
+
+                if (showNoteLabels && midiToNote[midiNote]) {
+                    ctx.fillStyle = isBlack ? '#fff' : '#000';
+                    ctx.font = `${keyDiameter * 0.3}px Arial`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(midiToNote[midiNote], x, y);
+                }
+            };
+
             for (let row = 0; row < rows; row++) {
                 for (let col = 0; col < cols; col++) {
                     const keyType = keyboardLayout[row][col];
-                    const x = startX + col * keyDiameter * H_SPACING + row * keyDiameter * ROW_OFFSET;
-                    const y = startY + row * keyDiameter * V_SPACING;
-                    const midiNote = startMidi + row + col * 3;
-                    
-                    keyPositions.push({
-                        x, y, radius: keyDiameter / 2, row, col,
-                        type: keyType, midiNote: midiNote
-                    });
-                    
-                    const isBlack = keyType === 1;
-                    const fillColor = isBlack ? '#333' : '#fff';
-                    const strokeColor = isBlack ? '#000' : '#888';
-                    const seed = (row + 1) * 10 + (col + 1);
-                    
-                    roughCanvas.circle(x, y, keyDiameter, {
-                        fill: fillColor, fillStyle: 'solid', stroke: strokeColor,
-                        strokeWidth: 1.5, roughness: 1.2, bowing: 0.3, seed: seed
-                    });
-                    
-                    roughCanvas.circle(x + 2, y + 2, keyDiameter - 4, {
-                        fill: isBlack ? '#222' : '#e8e8e8', fillStyle: 'solid',
-                        stroke: 'none', roughness: 0.8, bowing: 0.2, seed: seed + 100
-                    });
-                    
-                    if (showNoteLabels && midiToNote[midiNote]) {
-                        ctx.fillStyle = isBlack ? '#fff' : '#000';
-                        ctx.font = `${keyDiameter * 0.3}px Arial`;
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText(midiToNote[midiNote], x, y);
-                    }
+                    drawKey(row, col, keyType);
                 }
             }
+            // 右上角额外加一个 C 键，凑齐完整三个八度 (C to C)
+            drawKey(0, cols, 0);
         }
         
         function updateControlPanel() {
