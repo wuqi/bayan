@@ -3299,6 +3299,7 @@ function base64ToArrayBuffer(base64) {
 function sf2InstrumentToSmplrJson(sf2Instrument, context) {
   const buffers = /* @__PURE__ */ new Map();
   const regions = [];
+  const globalGens = sf2Instrument.globalZone && sf2Instrument.globalZone.generators || {};
   for (const zone of sf2Instrument.zones) {
     const { sample, keyRange } = zone;
     const { header } = sample;
@@ -3309,14 +3310,23 @@ function sf2InstrumentToSmplrJson(sf2Instrument, context) {
     audioBuffer.getChannelData(0).set(float32);
     buffers.set(sampleName, audioBuffer);
     const hasLoop = header.startLoop >= 0 && header.endLoop > header.startLoop;
-    regions.push(__spreadValues(__spreadValues({
+    const gens = zone.generators || {};
+    const overridingRootKey = gens[58] || globalGens[58];
+    const coarseTune = gens[51] || globalGens[51];
+    const fineTune = gens[52] || globalGens[52];
+    const region = {
       sample: sampleName,
-      pitch: header.originalPitch
-    }, keyRange && { keyRange: [keyRange.lo, keyRange.hi] }), hasLoop && {
-      loop: true,
-      loopStart: header.startLoop / header.sampleRate,
-      loopEnd: header.endLoop / header.sampleRate
-    }));
+      pitch: overridingRootKey ? overridingRootKey.value : header.originalPitch
+    };
+    if (coarseTune) region.tune = coarseTune.value;
+    if (fineTune) region.detune = fineTune.value;
+    if (keyRange) region.keyRange = [keyRange.lo, keyRange.hi];
+    if (hasLoop) {
+      region.loop = true;
+      region.loopStart = header.startLoop / header.sampleRate;
+      region.loopEnd = header.endLoop / header.sampleRate;
+    }
+    regions.push(region);
   }
   return {
     json: { samples: { baseUrl: "", formats: [] }, groups: [{ regions }] },
