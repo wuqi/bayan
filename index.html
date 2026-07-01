@@ -1508,7 +1508,7 @@
             resizeCanvas();
             updateControlPanel();
             await initAudio();
-            const sf2Loaded = await loadSF2Instrument("./GeneralUser.sf2");
+            const sf2Loaded = await loadSF2Instrument("./GeneralUser_GM.sf2");
             if (!sf2Loaded) {
                 // SF2 加载失败，回退到内置音色
                 console.warn("SF2加载失败，使用内置音色");
